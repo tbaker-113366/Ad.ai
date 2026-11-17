@@ -60,7 +60,15 @@ export const THRESHOLDS = {
     budgetHeavy: { cpaMultiple: 1.5, minShare: 0.25 },
     /** Check 13. */
     minRsasPerAdGroup: 2,
+    /** Check 16: Google-filtered invalid click rate worth flagging. */
+    invalidClicks: { minRate: 0.15, minInvalidClicks: 50 },
     /** Scoring: start at 100, subtract per finding, floor at 0. */
     scorePenalty: { critical: 20, warning: 5, opportunity: 3 },
+  },
+  /** Waste watch: when a new audit raises an in-app alert. */
+  alerts: {
+    /** New monthly waste (vs the previous audit) needs to reach both of these. */
+    newWasteMinAmount: 50,
+    newWasteMinShareOfSpend: 0.05,
   },
 } as const;

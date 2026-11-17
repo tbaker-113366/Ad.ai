@@ -80,6 +80,7 @@ export function sampleAudit(): { data: AuditData; profile: AuditProfile; account
     ],
     accountAssetTypes: ["SITELINK"],
     autoApplyTypes: ["CAMPAIGN_BUDGET"],
+    invalidClicks: { clicks: 980, invalidClicks: 240 },
   };
   return {
     data,

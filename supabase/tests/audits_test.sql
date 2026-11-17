@@ -52,3 +52,26 @@ select pg_temp.assert((select count(*) from audit_findings) = 0, 'finn sees no f
 
 reset role;
 \echo 'ALL AUDIT TESTS PASSED'
+
+-- Waste watch additions
+set role service_role;
+insert into alerts (business_id, ad_account_id, type, message)
+values (:'erin_biz', :'acct', 'new_waste', 'New waste found');
+do $$ begin
+  insert into audits (business_id, ad_account_id, trigger)
+  select business_id, id, 'hourly' from ad_accounts limit 1;
+  raise exception 'ASSERTION FAILED: bad trigger accepted';
+exception when check_violation then raise notice 'ok - audit trigger is constrained';
+end $$;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+select pg_temp.assert((select count(*) from alerts) = 1, 'erin sees her alert');
+update alerts set resolved_at = now();
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d1';
+select pg_temp.assert((select count(*) from alerts) = 0, 'finn sees no alerts');
+
+set role service_role;
+select pg_temp.assert((select resolved_at is null from alerts limit 1), 'users cannot resolve alerts directly');
+reset role;
+\echo 'ALL WASTE WATCH TESTS PASSED'

@@ -98,6 +98,9 @@ export const QUERIES = {
     SELECT customer_asset.field_type
     FROM customer_asset
     WHERE customer_asset.status = 'ENABLED' AND customer_asset.field_type IN ('SITELINK', 'CALLOUT', 'CALL')`,
+  invalidClicks: (f: string, t: string) => `
+    SELECT metrics.clicks, metrics.invalid_clicks
+    FROM customer WHERE segments.date BETWEEN '${f}' AND '${t}'`,
   autoApply: () => `
     SELECT recommendation_subscription.type, recommendation_subscription.status
     FROM recommendation_subscription`,
@@ -232,6 +235,12 @@ export const map = {
   accountAssetTypes(rows: Row[]): string[] {
     return [...new Set(rows.map((r) => s(r.customerAsset?.fieldType)))];
   },
+  invalidClicks(rows: Row[]): AuditData["invalidClicks"] {
+    return rows.reduce<AuditData["invalidClicks"]>(
+      (acc, r) => ({ clicks: acc.clicks + n(r.metrics?.clicks), invalidClicks: acc.invalidClicks + n(r.metrics?.invalidClicks) }),
+      { clicks: 0, invalidClicks: 0 },
+    );
+  },
   autoApplyTypes(rows: Row[]): string[] {
     return rows.filter((r) => r.recommendationSubscription?.status === "ENABLED").map((r) => s(r.recommendationSubscription?.type));
   },
@@ -264,6 +273,7 @@ export async function loadAuditData({ client, customerId, currency, timeZone, no
     campaignAssets: q(QUERIES.campaignAssets()),
     accountAssets: q(QUERIES.accountAssets()),
     autoApply: q(QUERIES.autoApply()),
+    invalidClicks: q(QUERIES.invalidClicks(f, t)),
   };
   const keys = Object.keys(sources) as Array<keyof typeof sources>;
   const settled = await Promise.allSettled(Object.values(sources));
@@ -293,6 +303,7 @@ export async function loadAuditData({ client, customerId, currency, timeZone, no
   if (failed.has("adGroups") || failed.has("ads")) unavailable.add("ads");
   if (failed.has("campaignAssets") || failed.has("accountAssets")) unavailable.add("assets");
   if (failed.has("autoApply")) unavailable.add("autoApply");
+  if (failed.has("invalidClicks")) unavailable.add("invalidClicks");
 
   const campaigns = map.campaigns(rows.campaigns);
   return {
@@ -318,6 +329,7 @@ export async function loadAuditData({ client, customerId, currency, timeZone, no
     accountAssetTypes: map.accountAssetTypes(rows.accountAssets),
     campaignAssetTypes: map.campaignAssetTypes(rows.campaignAssets),
     autoApplyTypes: map.autoApplyTypes(rows.autoApply),
+    invalidClicks: map.invalidClicks(rows.invalidClicks),
     unavailable: [...unavailable],
   };
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { Evidence, RecommendedAction, Severity } from "@/lib/audit/types";
 import { negativeKeywordList } from "@/lib/audit/negatives";
+import { CHECK_COUNT } from "@/lib/audit";
 
 export type FindingView = {
   checkKey: string;
@@ -86,8 +87,8 @@ export function AuditReport(p: Props) {
           )}
           <p className="mt-2 text-slate-600">
             {p.findings.length === 0
-              ? "Your account passed all 15 checks."
-              : `We found ${p.findings.length} thing${p.findings.length === 1 ? "" : "s"} to fix across 15 checks.`}
+              ? `Your account passed all ${CHECK_COUNT} checks.`
+              : `We found ${p.findings.length} thing${p.findings.length === 1 ? "" : "s"} to fix across ${CHECK_COUNT} checks.`}
           </p>
         </div>
       </section>

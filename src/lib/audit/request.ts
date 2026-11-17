@@ -3,7 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest, EVENTS } from "@/inngest/client";
 
 /** Queue an audit for an ad account, reusing one already queued or running. */
-export async function requestAudit(admin: SupabaseClient, businessId: string, adAccountId: string): Promise<string> {
+export type AuditTrigger = "connect" | "manual" | "weekly";
+
+export async function requestAudit(
+  admin: SupabaseClient,
+  businessId: string,
+  adAccountId: string,
+  trigger: AuditTrigger = "manual",
+): Promise<string> {
   const { data: existing } = await admin
     .from("audits")
     .select("id")
@@ -16,7 +23,7 @@ export async function requestAudit(admin: SupabaseClient, businessId: string, ad
 
   const { data, error } = await admin
     .from("audits")
-    .insert({ business_id: businessId, ad_account_id: adAccountId, status: "queued", progress_step: "Waiting to start" })
+    .insert({ business_id: businessId, ad_account_id: adAccountId, status: "queued", progress_step: "Waiting to start", trigger })
     .select("id")
     .single();
   if (error || !data) throw new Error(`Could not create audit: ${error?.message}`);

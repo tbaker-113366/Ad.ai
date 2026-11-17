@@ -125,6 +125,7 @@ export function healthyData(overrides: Partial<AuditData> = {}): AuditData {
     accountAssetTypes: ["SITELINK", "CALLOUT", "CALL"],
     campaignAssetTypes: {},
     autoApplyTypes: [],
+    invalidClicks: { clicks: 700, invalidClicks: 21 },
     unavailable: [],
     ...overrides,
   };

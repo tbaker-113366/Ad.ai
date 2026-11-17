@@ -4,9 +4,9 @@ import { campaign, healthyData, profile, term } from "./fixtures";
 import { ALL_CHECKS, runAudit, score } from "./index";
 
 describe("runAudit", () => {
-  it("has 15 checks with unique keys", () => {
-    expect(ALL_CHECKS).toHaveLength(15);
-    expect(new Set(ALL_CHECKS.map((c) => c.key)).size).toBe(15);
+  it("has 16 checks with unique keys", () => {
+    expect(ALL_CHECKS).toHaveLength(16);
+    expect(new Set(ALL_CHECKS.map((c) => c.key)).size).toBe(16);
   });
 
   it("gives a healthy account 100 and no waste", () => {

@@ -8,6 +8,7 @@ import { formatCustomerId, formatDateTime } from "@/lib/format";
 import { ReconnectBanner } from "@/components/ReconnectBanner";
 import { runTestJob } from "./actions";
 import { rerunAudit } from "@/app/audits/[id]/actions";
+import { dismissAlert } from "./alertActions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const supabase = await createClient();
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
-  const [{ data: accounts }, { data: revoked }, { data: metrics }, { data: runs }, { data: audits }] = await Promise.all([
+  const [{ data: accounts }, { data: revoked }, { data: metrics }, { data: runs }, { data: audits }, { data: alerts }] = await Promise.all([
     supabase
       .from("ad_accounts")
       .select("id, customer_id, descriptive_name, currency, last_synced_at, initial_sync_done")
@@ -43,8 +44,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .from("audits")
       .select("id, ad_account_id, status, score, est_monthly_waste_micros, currency, created_at")
       .order("created_at", { ascending: false })
-      .limit(50),
+      .limit(200),
+    supabase
+      .from("alerts")
+      .select("id, message, link, severity, created_at")
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
+
+  // First completed audit per account, to show the waste trend.
+  const firstAudit = new Map<string, NonNullable<typeof audits>[number]>();
+  for (const a of audits ?? []) if (a.status === "succeeded") firstAudit.set(a.ad_account_id, a);
 
   // Latest audit per account.
   const latestAudit = new Map<string, NonNullable<typeof audits>[number]>();
@@ -77,6 +88,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       </header>
 
       <ReconnectBanner emails={(revoked ?? []).map((r) => r.google_user_email)} />
+      {(alerts ?? []).map((al) => (
+        <div key={al.id} role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <p>{al.message}</p>
+          <div className="flex items-center gap-4">
+            {al.link && (
+              <Link href={al.link} className="font-medium underline">
+                See what changed
+              </Link>
+            )}
+            <form action={dismissAlert}>
+              <input type="hidden" name="alertId" value={al.id} />
+              <button className="underline">Dismiss</button>
+            </form>
+          </div>
+        </div>
+      ))}
       {connected && (
         <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">
           Connected. We&apos;re pulling your last 90 days of data — this usually takes under a minute.
@@ -109,6 +136,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               return (
                 <li key={a.id} className="rounded-lg border border-slate-200 p-4">
                   <p className="font-medium">{a.descriptive_name ?? formatCustomerId(a.customer_id)}</p>
+                  {(() => {
+                    const first = firstAudit.get(a.id);
+                    if (!first || !audit || first.id === audit.id || audit.status !== "succeeded") return null;
+                    const before = Number(first.est_monthly_waste_micros ?? 0);
+                    const now = Number(audit.est_monthly_waste_micros ?? 0);
+                    const cur = audit.currency ?? a.currency;
+                    return (
+                      <p className="mt-2 text-sm text-slate-600">
+                        Wasted spend: {formatMoney(before, cur)} → {formatMoney(now, cur)} a month
+                        {before > now && (
+                          <span className="font-medium text-green-700"> · {formatMoney(before - now, cur)} a month cut</span>
+                        )}
+                      </p>
+                    );
+                  })()}
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-slate-50 p-3 text-sm">
                     {!audit ? (
                       <span className="text-slate-600">No audit yet.</span>

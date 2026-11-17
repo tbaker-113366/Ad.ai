@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/config";
+import { CHECK_COUNT } from "@/lib/audit";
 
 export default function Home() {
   return (
@@ -25,7 +26,7 @@ export default function Home() {
       <ul className="mt-6 grid gap-4 text-sm text-slate-700 sm:grid-cols-3">
         <li>
           <p className="font-medium text-slate-900">Free 60-second audit</p>
-          15 checks find the searches, places and settings wasting your money.
+          {CHECK_COUNT} checks find the searches, places, settings and fake clicks wasting your money.
         </li>
         <li>
           <p className="font-medium text-slate-900">A £ figure, not jargon</p>

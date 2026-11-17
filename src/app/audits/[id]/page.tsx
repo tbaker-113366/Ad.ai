@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AuditReport, type FindingView } from "@/components/audit/AuditReport";
 import { AuditProgress } from "@/components/audit/AuditProgress";
 import { formatCustomerId } from "@/lib/format";
+import { formatMoney } from "@/lib/money";
 import { rerunAudit } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
     .from("audits")
     .select(
       "id, status, progress_step, score, est_monthly_waste_micros, currency, window_from, window_to, window_days, error, ad_account_id, " +
+        "previous_audit_id, resolved_count, new_count, stopped_waste_micros, new_waste_micros, previous:previous_audit_id(finished_at), " +
         "ad_accounts(descriptive_name, customer_id, currency)",
     )
     .eq("id", id)
@@ -39,6 +41,12 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
     error: string | null;
     ad_account_id: string;
     ad_accounts: { descriptive_name: string | null; customer_id: string; currency: string };
+    previous_audit_id: string | null;
+    resolved_count: number | null;
+    new_count: number | null;
+    stopped_waste_micros: number | null;
+    new_waste_micros: number | null;
+    previous: { finished_at: string } | null;
   };
   const accountName = a.ad_accounts.descriptive_name ?? formatCustomerId(a.ad_accounts.customer_id);
   const canEdit = role === "owner" || role === "admin";
@@ -65,7 +73,25 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
       .select("check_key, severity, title, explanation, fix, est_monthly_waste_micros, evidence, recommended_actions")
       .eq("audit_id", a.id)
       .order("rank");
+    const cur = a.currency ?? a.ad_accounts.currency;
     body = (
+      <>
+      {a.previous_audit_id && (
+        <section className="rounded-xl border border-slate-200 p-4 text-sm">
+          <h2 className="font-semibold">
+            Since your last audit
+            {a.previous?.finished_at ? ` on ${new Date(a.previous.finished_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}
+          </h2>
+          <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+            <li>✓ {a.resolved_count ?? 0} problem{a.resolved_count === 1 ? "" : "s"} fixed</li>
+            <li>{a.new_count ?? 0} new problem{a.new_count === 1 ? "" : "s"}</li>
+            <li className="text-green-700">Waste stopped: {formatMoney(Number(a.stopped_waste_micros ?? 0), cur)} a month</li>
+            <li className={Number(a.new_waste_micros) > 0 ? "text-red-700" : ""}>
+              New waste: {formatMoney(Number(a.new_waste_micros ?? 0), cur)} a month
+            </li>
+          </ul>
+        </section>
+      )}
       <AuditReport
         accountName={accountName}
         currency={a.currency ?? a.ad_accounts.currency}
@@ -88,6 +114,7 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
         )}
         ctaHref="/pricing"
       />
+      </>
     );
   }
 

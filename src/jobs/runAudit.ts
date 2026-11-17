@@ -7,7 +7,9 @@ import { assertQuotaAvailable } from "@/lib/ads/quota";
 import { QuotaExceededError, ReconnectRequiredError } from "@/lib/ads/errors";
 import { loadAuditData } from "@/lib/audit/load";
 import { runAudit } from "@/lib/audit";
-import type { AuditProfile } from "@/lib/audit/types";
+import type { AuditProfile, WasteItem } from "@/lib/audit/types";
+import { compareAudits, shouldAlertNewWaste, type AuditSnapshot } from "@/lib/audit/compare";
+import { formatMoney } from "@/lib/money";
 
 import { AUDIT_STEPS } from "./auditSteps";
 
@@ -116,6 +118,7 @@ export const runAuditJob = inngest.createFunction(
                   evidence: f.evidence,
                   recommended_actions: f.recommendedActions,
                   blocks_autopilot: Boolean(f.blocksAutopilot),
+                  waste_items: f.wasteItems,
                 })),
                 { onConflict: "audit_id,check_key" },
               );
@@ -139,6 +142,61 @@ export const runAuditJob = inngest.createFunction(
                 skipped_checks: result.skippedChecks,
               })
               .eq("id", auditId);
+
+            // Waste watch: compare with the previous completed audit of this account.
+            const { data: prev } = await admin
+              .from("audits")
+              .select("id, window_days, total_spend_micros, audit_findings(check_key, title, waste_items)")
+              .eq("ad_account_id", audit.ad_account_id)
+              .eq("status", "succeeded")
+              .neq("id", auditId)
+              .order("finished_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (prev) {
+              const prevSnap: AuditSnapshot = {
+                windowDays: prev.window_days,
+                totalSpendMicros: Number(prev.total_spend_micros ?? 0),
+                findings: (prev.audit_findings ?? []).map(
+                  (f: { check_key: string; title: string; waste_items: WasteItem[] }) => ({
+                    checkKey: f.check_key,
+                    title: f.title,
+                    wasteItems: f.waste_items ?? [],
+                  }),
+                ),
+              };
+              const currSnap: AuditSnapshot = {
+                windowDays: data.windowDays,
+                totalSpendMicros: data.totals.costMicros,
+                findings: result.findings.map((f) => ({ checkKey: f.checkKey, title: f.title, wasteItems: f.wasteItems })),
+              };
+              const cmp = compareAudits(prevSnap, currSnap);
+              await admin
+                .from("audits")
+                .update({
+                  previous_audit_id: prev.id,
+                  resolved_count: cmp.resolvedChecks.length,
+                  new_count: cmp.newChecks.length,
+                  stopped_waste_micros: cmp.stoppedWasteMicros,
+                  new_waste_micros: cmp.newWasteMicros,
+                })
+                .eq("id", auditId);
+
+              if (shouldAlertNewWaste(cmp, currSnap)) {
+                await admin.from("alerts").insert({
+                  business_id: audit.business_id,
+                  ad_account_id: audit.ad_account_id,
+                  audit_id: auditId,
+                  type: "new_waste",
+                  severity: "warning",
+                  message: `New wasted spend found: about ${formatMoney(cmp.newWasteMicros, data.currency)} a month${
+                    cmp.newChecks.length ? ` (${cmp.newChecks.map((c) => c.title.toLowerCase()).join("; ")})` : ""
+                  }.`,
+                  link: `/audits/${auditId}`,
+                });
+              }
+              ctx.setMetadata("comparison", cmp);
+            }
 
             ctx.setMetadata("score", result.score);
             ctx.setMetadata("findings", result.findings.length);

@@ -100,6 +100,8 @@ export type AuditData = {
   accountAssetTypes: string[];
   /** Enabled asset field types per campaign. */
   campaignAssetTypes: Record<string, string[]>;
+  /** Clicks Google filtered as invalid (and didn't charge for) in the window. */
+  invalidClicks: { clicks: number; invalidClicks: number };
   /** Recommendation types with auto-apply turned on. */
   autoApplyTypes: string[];
   /** Data sources that could not be loaded; checks needing them are skipped. */

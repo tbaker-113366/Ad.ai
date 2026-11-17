@@ -83,9 +83,9 @@ made-up data is at `/audit/sample`.
 
 1. Connecting an account queues `audit.run`. The user watches live progress
    at `/audits/<id>`.
-2. `lib/audit/load.ts` runs ~15 GAQL queries in parallel over the last 30
+2. `lib/audit/load.ts` runs ~16 GAQL queries in parallel over the last 30
    complete days (90 for low-volume accounts).
-3. Each of the 15 checks in `lib/audit/checks/` is a pure function
+3. Each of the 16 checks in `lib/audit/checks/` is a pure function
    `run(data, profile) → findings`, tested with fixture data for both the
    trigger and no-trigger cases.
 4. Score starts at 100 (critical −20, warning −5, opportunity −3). Monthly
@@ -94,6 +94,15 @@ made-up data is at `/audit/sample`.
    more than was spent.
 5. Findings show the evidence rows behind every number, plain-English fixes,
    and paste-ready negative keyword lists.
+
+## Waste watch
+
+- Every Monday 06:00 UK time, `audit.weekly` re-audits each active account.
+- Each audit is compared with the previous one: problems fixed, new
+  problems, waste stopped and new waste (per £ item, counted once).
+- New waste of at least £50/month and 5% of spend raises an in-app alert
+  (email delivery arrives with Phase 5).
+- Check 16 reports Google's own invalid-click figures.
 
 ## How the Google connection works
 

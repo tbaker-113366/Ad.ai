@@ -16,6 +16,7 @@ import { broadMatchWithoutSmartBidding } from "./checks/12-broad-match-without-s
 import { weakAds } from "./checks/13-weak-ads";
 import { missingAssets } from "./checks/14-missing-assets";
 import { autoAppliedRecommendations } from "./checks/15-auto-applied-recommendations";
+import { invalidClicks } from "./checks/16-invalid-clicks";
 
 export const ALL_CHECKS: AuditCheck[] = [
   conversionTrackingMissing,
@@ -33,7 +34,10 @@ export const ALL_CHECKS: AuditCheck[] = [
   weakAds,
   missingAssets,
   autoAppliedRecommendations,
+  invalidClicks,
 ];
+
+export const CHECK_COUNT = ALL_CHECKS.length;
 
 export type RankedFinding = CheckFinding & { rank: number; estMonthlyWasteMicros: number | null };
 

@@ -108,7 +108,7 @@ describe("loadAuditData", () => {
     expect(data.windowDays).toBe(90);
     expect(data.from).toBe("2026-08-19");
     expect(data.unavailable).toEqual(["autoApply"]);
-    expect(client.calls).toHaveLength(15);
+    expect(client.calls).toHaveLength(16);
   });
 
   it("uses 30 days for busier accounts", async () => {

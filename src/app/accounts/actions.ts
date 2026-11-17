@@ -59,7 +59,7 @@ export async function connectAccounts(formData: FormData) {
   const ids = (rows ?? []).map((r) => r.id as string);
   await inngest.send(ids.map((adAccountId) => ({ name: EVENTS.syncRequested, data: { adAccountId } })));
   // The free audit starts straight away (spec §10: audit result in under 60 seconds).
-  const auditIds = await Promise.all(ids.map((id) => requestAudit(admin, business.id, id)));
+  const auditIds = await Promise.all(ids.map((id) => requestAudit(admin, business.id, id, "connect")));
   redirect(auditIds.length === 1 ? `/audits/${auditIds[0]}` : "/dashboard?connected=1");
 }
 
