@@ -13,7 +13,7 @@ No AI output is applied to a live account without passing the guardrails.
 | --- | --- | --- |
 | 0. Foundations | Next.js, Supabase auth + RLS, businesses / members / business_profiles, job runner logging to `job_runs`, Sentry, CI | ✅ built |
 | 1. Google connection | OAuth, encrypted tokens, account picker, `adsClient`, nightly sync | ✅ built (needs a test-account run) |
-| 2. Audit engine | 15 checks, scoring, waste estimate, findings UI | — |
+| 2. Audit engine | 15 checks, scoring, waste estimate, findings UI | ✅ built (needs a test-account run) |
 | 3. Actions & guardrails | actions table, guardrails, negatives + budget, inbox, undo | — |
 | 4. AI layer | search-term classifier, RSA copy, explanations | — |
 | 5. Reports & alerts | weekly email, alert checks | — |
@@ -35,6 +35,7 @@ src/lib/supabase/        user (RLS) and service-role clients
 src/lib/ads/             adsClient (all Google Ads API calls), GAQL, discovery, sync, quota
 src/lib/google/          OAuth + stored connections (token decrypt happens only in jobs)
 src/lib/crypto/          AES-256-GCM refresh-token encryption
+src/lib/audit/            audit engine: load.ts (GAQL), checks/ (one file per check), index.ts (score + waste)
 src/config/thresholds.ts every tunable number, in one owner-editable file
 src/inngest/client.ts    Inngest client + event names
 src/jobs/                background job definitions
@@ -71,6 +72,28 @@ supabase/tests/          RLS tests run against plain Postgres
    last 90 days sync into `daily_metrics` (Phase 1 "done when"). Revoking
    access at myaccount.google.com/permissions makes the next sync show the
    "Reconnect your Google Ads account" banner.
+
+## Product focus
+
+v1 is about **finding and cutting wasted ad spend**. Automation (autopilot
+actions, budget pacing, ad testing) comes after. A public sample audit on
+made-up data is at `/audit/sample`.
+
+## How the audit works
+
+1. Connecting an account queues `audit.run`. The user watches live progress
+   at `/audits/<id>`.
+2. `lib/audit/load.ts` runs ~15 GAQL queries in parallel over the last 30
+   complete days (90 for low-volume accounts).
+3. Each of the 15 checks in `lib/audit/checks/` is a pure function
+   `run(data, profile) → findings`, tested with fixture data for both the
+   trigger and no-trigger cases.
+4. Score starts at 100 (critical −20, warning −5, opportunity −3). Monthly
+   waste is the sum of flagged costs scaled to 30 days, counting each cost
+   once (a search term flagged by three checks is counted once) and never
+   more than was spent.
+5. Findings show the evidence rows behind every number, plain-English fixes,
+   and paste-ready negative keyword lists.
 
 ## How the Google connection works
 

@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/money";
 import { formatCustomerId, formatDateTime } from "@/lib/format";
 import { ReconnectBanner } from "@/components/ReconnectBanner";
 import { runTestJob } from "./actions";
+import { rerunAudit } from "@/app/audits/[id]/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const supabase = await createClient();
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
-  const [{ data: accounts }, { data: revoked }, { data: metrics }, { data: runs }] = await Promise.all([
+  const [{ data: accounts }, { data: revoked }, { data: metrics }, { data: runs }, { data: audits }] = await Promise.all([
     supabase
       .from("ad_accounts")
       .select("id, customer_id, descriptive_name, currency, last_synced_at, initial_sync_done")
@@ -38,7 +39,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .eq("business_id", business.id)
       .order("started_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("audits")
+      .select("id, ad_account_id, status, score, est_monthly_waste_micros, currency, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
+
+  // Latest audit per account.
+  const latestAudit = new Map<string, NonNullable<typeof audits>[number]>();
+  for (const a of audits ?? []) if (!latestAudit.has(a.ad_account_id)) latestAudit.set(a.ad_account_id, a);
 
   const totals = new Map<string, Totals>();
   for (const m of metrics ?? []) {
@@ -56,9 +66,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <p className="text-sm text-slate-500">{PRODUCT_NAME}</p>
           <h1 className="text-2xl font-semibold">{business.name}</h1>
         </div>
-        <form action="/auth/signout" method="post">
-          <button className="text-sm text-slate-600 underline">Sign out</button>
-        </form>
+        <nav className="flex items-center gap-4 text-sm text-slate-600">
+          <Link href="/settings/profile" className="underline">
+            Business profile
+          </Link>
+          <form action="/auth/signout" method="post">
+            <button className="underline">Sign out</button>
+          </form>
+        </nav>
       </header>
 
       <ReconnectBanner emails={(revoked ?? []).map((r) => r.google_user_email)} />
@@ -90,9 +105,39 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <ul className="grid gap-3">
             {(accounts ?? []).map((a) => {
               const t = totals.get(a.id) ?? { cost: 0, clicks: 0, conversions: 0 };
+              const audit = latestAudit.get(a.id);
               return (
                 <li key={a.id} className="rounded-lg border border-slate-200 p-4">
                   <p className="font-medium">{a.descriptive_name ?? formatCustomerId(a.customer_id)}</p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-slate-50 p-3 text-sm">
+                    {!audit ? (
+                      <span className="text-slate-600">No audit yet.</span>
+                    ) : audit.status === "succeeded" ? (
+                      <Link href={`/audits/${audit.id}`} className="hover:underline">
+                        <span className="font-semibold">Score {audit.score}/100</span>
+                        {Number(audit.est_monthly_waste_micros) > 0 && (
+                          <span className="text-red-700">
+                            {" "}
+                            · about {formatMoney(Number(audit.est_monthly_waste_micros), audit.currency ?? a.currency)} a month
+                            wasted
+                          </span>
+                        )}
+                        <span className="text-slate-500"> · see findings →</span>
+                      </Link>
+                    ) : audit.status === "failed" ? (
+                      <Link href={`/audits/${audit.id}`} className="text-red-700 hover:underline">
+                        Last audit didn&apos;t finish →
+                      </Link>
+                    ) : (
+                      <Link href={`/audits/${audit.id}`} className="hover:underline">
+                        Audit in progress… →
+                      </Link>
+                    )}
+                    <form action={rerunAudit}>
+                      <input type="hidden" name="adAccountId" value={a.id} />
+                      <button className="text-slate-600 underline">{audit ? "Run a new audit" : "Run audit"}</button>
+                    </form>
+                  </div>
                   {!a.initial_sync_done ? (
                     <p className="mt-1 text-sm text-slate-500">Syncing your data…</p>
                   ) : (

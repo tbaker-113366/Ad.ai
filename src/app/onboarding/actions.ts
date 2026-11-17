@@ -37,5 +37,5 @@ export async function createBusiness(formData: FormData) {
   });
   if (error) redirect(`/onboarding?error=${encodeURIComponent(error.message)}`);
 
-  redirect("/dashboard");
+  redirect("/settings/profile?onboarding=1");
 }

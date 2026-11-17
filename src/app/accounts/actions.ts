@@ -8,6 +8,7 @@ import { decryptRefreshToken } from "@/lib/google/connections";
 import { revokeToken } from "@/lib/google/oauth";
 import type { DiscoveredAccount } from "@/lib/ads/discovery";
 import { inngest, EVENTS } from "@/inngest/client";
+import { requestAudit } from "@/lib/audit/request";
 
 async function loadConnection(connectionId: string, businessId: string) {
   const admin = createAdminClient();
@@ -55,8 +56,11 @@ export async function connectAccounts(formData: FormData) {
     .select("id");
   if (error) redirect(`/accounts?error=${encodeURIComponent("Could not connect those accounts")}`);
 
-  await inngest.send((rows ?? []).map((r) => ({ name: EVENTS.syncRequested, data: { adAccountId: r.id } })));
-  redirect("/dashboard?connected=1");
+  const ids = (rows ?? []).map((r) => r.id as string);
+  await inngest.send(ids.map((adAccountId) => ({ name: EVENTS.syncRequested, data: { adAccountId } })));
+  // The free audit starts straight away (spec §10: audit result in under 60 seconds).
+  const auditIds = await Promise.all(ids.map((id) => requestAudit(admin, business.id, id)));
+  redirect(auditIds.length === 1 ? `/audits/${auditIds[0]}` : "/dashboard?connected=1");
 }
 
 /** Stop managing one ad account (data is kept). */

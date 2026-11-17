@@ -9,7 +9,10 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-6 px-4 py-24">
-      <h1 className="text-2xl font-semibold">Tell us about your business</h1>
+      <div>
+        <p className="text-sm font-medium text-slate-500">Step 1 of 3</p>
+        <h1 className="text-2xl font-semibold">Tell us about your business</h1>
+      </div>
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <form action={createBusiness} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">

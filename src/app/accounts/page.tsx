@@ -51,6 +51,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
             ← Dashboard
           </Link>
           <h1 className="text-2xl font-semibold">Google Ads accounts</h1>
+          {(accounts ?? []).length === 0 && <p className="text-sm text-slate-500">Step 3 of 3: connect to get your free audit</p>}
         </div>
         {canEdit && (
           <a

@@ -9,4 +9,6 @@ export const EVENTS = {
   connectionCreated: "google/connection.created",
   /** data: { adAccountId } — pull metrics into daily_metrics. */
   syncRequested: "ads/sync.requested",
+  /** data: { auditId } — run the 15-check audit for an ad account. */
+  auditRequested: "audit/run.requested",
 } as const;
