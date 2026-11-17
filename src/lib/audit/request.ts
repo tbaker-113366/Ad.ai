@@ -1,6 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { EVENTS, sendEvents } from "@/inngest/client";
+import { EVENTS } from "@/inngest/client";
+import { queueOrRun } from "@/lib/jobs/queue";
+import { runAuditNow } from "@/jobs/runAudit";
 
 /** Queue an audit for an ad account, reusing one already queued or running. */
 export type AuditTrigger = "connect" | "manual" | "weekly";
@@ -27,11 +29,7 @@ export async function requestAudit(
     .select("id")
     .single();
   if (error || !data) throw new Error(`Could not create audit: ${error?.message}`);
-  if (!(await sendEvents({ name: EVENTS.auditRequested, data: { auditId: data.id } }))) {
-    await admin
-      .from("audits")
-      .update({ status: "failed", error: "We couldn't start your audit just now. Please try again in a minute.", progress_step: null })
-      .eq("id", data.id);
-  }
+  const auditId = data.id as string;
+  await queueOrRun({ name: EVENTS.auditRequested, data: { auditId } }, () => runAuditNow(auditId));
   return data.id as string;
 }

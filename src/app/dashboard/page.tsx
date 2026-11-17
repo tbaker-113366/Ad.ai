@@ -12,6 +12,8 @@ import { rerunAudit } from "@/app/audits/[id]/actions";
 import { dismissAlert } from "./alertActions";
 
 export const dynamic = "force-dynamic";
+// Inline background work (when the job queue is unavailable) may need this long.
+export const maxDuration = 300;
 
 type Totals = { cost: number; clicks: number; conversions: number };
 

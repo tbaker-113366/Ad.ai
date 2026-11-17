@@ -12,6 +12,8 @@ import { Badge, Button, Card, Notice, buttonClass } from "@/components/ui";
 import { connectAccounts, rediscover } from "@/app/accounts/actions";
 
 export const dynamic = "force-dynamic";
+// Inline background work (when the job queue is unavailable) may need this long.
+export const maxDuration = 300;
 
 export default async function AccountsStep({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { user, business } = await getCurrentBusiness();
@@ -28,11 +30,14 @@ export default async function AccountsStep({ searchParams }: { searchParams: Pro
     .order("updated_at", { ascending: false })
     .limit(1);
   const conn = conns?.[0] as
-    | { id: string; google_user_email: string; discovery_status: string; discovered_accounts: DiscoveredAccount[] }
+    | { id: string; google_user_email: string; discovery_status: string; discovered_accounts: DiscoveredAccount[]; updated_at: string }
     | undefined;
   if (!conn) redirect("/onboarding/google");
 
   const accounts = conn.discovered_accounts ?? [];
+  // Finding accounts takes seconds; after 90s assume it stalled and offer a retry.
+  const stalled = conn.discovery_status === "pending" && Date.now() - Date.parse(conn.updated_at) > 90_000;
+  if (stalled) conn.discovery_status = "failed";
   const pending = conn.discovery_status === "pending";
 
   return (

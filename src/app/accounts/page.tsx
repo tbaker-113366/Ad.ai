@@ -10,6 +10,8 @@ import { AppHeader } from "@/components/app/AppHeader";
 import { connectAccounts, disconnectGoogle, rediscover, removeAccount } from "./actions";
 
 export const dynamic = "force-dynamic";
+// Inline background work (when the job queue is unavailable) may need this long.
+export const maxDuration = 300;
 
 type Connection = {
   id: string;

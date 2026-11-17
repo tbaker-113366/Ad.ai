@@ -8,6 +8,8 @@ import { requestAudit } from "@/lib/audit/request";
  * hasn't had one, then show the first. Safe to hit twice (it never starts a
  * second audit for an account that already has one).
  */
+export const maxDuration = 300;
+
 export async function GET(request: NextRequest) {
   const { user, business, role } = await getCurrentBusiness();
   if (!user) return NextResponse.redirect(new URL("/login", request.url));

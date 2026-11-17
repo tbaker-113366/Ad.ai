@@ -10,6 +10,8 @@ import { AppHeader } from "@/components/app/AppHeader";
 import { rerunAudit } from "./actions";
 
 export const dynamic = "force-dynamic";
+// Inline background work (when the job queue is unavailable) may need this long.
+export const maxDuration = 300;
 
 export default async function AuditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
