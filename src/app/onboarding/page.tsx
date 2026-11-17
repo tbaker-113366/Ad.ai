@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentBusiness } from "@/lib/business/current";
 import { createBusiness } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { business } = await getCurrentBusiness();
   if (business) redirect("/dashboard");

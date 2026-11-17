@@ -1,6 +1,8 @@
 import { PRODUCT_NAME } from "@/lib/config";
 import { signInWithEmail, signInWithGoogle } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage({
   searchParams,
 }: {

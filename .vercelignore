@@ -1,0 +1,6 @@
+screenshots
+node_modules
+.next
+.env*
+!.env.example
+supabase/.temp

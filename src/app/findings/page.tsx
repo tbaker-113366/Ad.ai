@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentBusiness } from "@/lib/business/current";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 /** "Findings" screen: the latest completed audit. */
 export default async function FindingsPage() {
   const { user, business } = await getCurrentBusiness();
