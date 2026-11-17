@@ -40,7 +40,7 @@ export default function Home() {
         <section className="bg-ink pb-0 text-white">
           <div className="mx-auto max-w-[1136px] px-4 pt-14 sm:px-6 sm:pt-20">
             <span className="inline-flex rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Free audit · read-only · no card
+              Free audit · 7-day free trial · read-only
             </span>
             <h1 className="mt-6 max-w-[1040px] text-[40px] font-black leading-[0.98] tracking-[-0.045em] sm:text-[72px] lg:text-[92px]">
               Your Google Ads are leaking money. <span className="text-primary">Find out how much in 60 seconds.</span>
