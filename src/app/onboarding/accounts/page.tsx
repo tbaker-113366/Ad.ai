@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { redirect } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { getCurrentBusiness } from "@/lib/business/current";
@@ -37,7 +38,7 @@ export default async function AccountsStep({ searchParams }: { searchParams: Pro
   return (
     <OnboardingShell step={3} title={pending ? "Finding your accounts…" : "Which accounts should we check?"} error={error} wide
       intro={pending ? "This takes a few seconds." : "Your free audit can cover all of them. You can change this later."}>
-      {pending && <meta httpEquiv="refresh" content="2" />}
+      {pending && <AutoRefresh seconds={2} />}
       {!pending && (
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-saved-border bg-saved-bg px-4 py-3 text-sm text-saved">
           <CheckCircle2 className="size-4" aria-hidden />

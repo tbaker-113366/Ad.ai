@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { redirect } from "next/navigation";
 import { getCurrentBusiness } from "@/lib/business/current";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +48,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
     <>
     <AppHeader businessName={business.name} />
     <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
-      {discovering && <meta httpEquiv="refresh" content="3" />}
+      {discovering && <AutoRefresh seconds={3} />}
       <header className="flex items-center justify-between gap-4">
         <div>
           <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
