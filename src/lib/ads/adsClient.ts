@@ -12,7 +12,12 @@ const BASE_URL = "https://googleads.googleapis.com";
 type Fetch = typeof fetch;
 
 export type AdsClientOptions = {
-  developerToken: string;
+  /**
+   * Legacy. Since 9 Sept 2026 access comes from the Google Cloud project that
+   * issued the OAuth credentials; the header is ignored, and Google plans to
+   * reject it in a future version, so it's only sent when explicitly set.
+   */
+  developerToken?: string;
   /** Returns a valid OAuth access token (refreshing as needed). */
   getAccessToken: () => Promise<string>;
   /** Manager account id when the customer is reached through a manager. */
@@ -91,9 +96,9 @@ export function createAdsClient(opts: AdsClientOptions): AdsClient {
     for (let attempt = 1; ; attempt++) {
       const headers: Record<string, string> = {
         Authorization: `Bearer ${await opts.getAccessToken()}`,
-        "developer-token": opts.developerToken,
         "Content-Type": "application/json",
       };
+      if (opts.developerToken) headers["developer-token"] = opts.developerToken;
       if (opts.loginCustomerId) headers["login-customer-id"] = normaliseCustomerId(opts.loginCustomerId);
 
       const res = await fetchFn(`${BASE_URL}/${version}/${path}`, {

@@ -69,6 +69,13 @@ describe("adsClient.searchStream", () => {
     expect(ops).toEqual([1]);
   });
 
+  it("sends no developer-token header unless one is configured", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(json(200, []));
+    const client = createAdsClient({ getAccessToken: async () => "t", fetch: fetchFn });
+    await client.searchStream("1234567890", "q");
+    expect(fetchFn.mock.calls[0][1].headers).not.toHaveProperty("developer-token");
+  });
+
   it("omits login-customer-id for direct access", async () => {
     const { client, fetchFn } = setup([json(200, [])]);
     await client.searchStream("1234567890", "SELECT customer.id FROM customer");

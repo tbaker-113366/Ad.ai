@@ -28,7 +28,11 @@ export function serverEnv() {
 const googleSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
-  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().min(1),
+  /**
+   * Legacy and optional: developer tokens were retired on 9 Sept 2026. API
+   * access now comes from the Google Cloud project behind GOOGLE_CLIENT_ID.
+   */
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().min(1).optional(),
   GOOGLE_ADS_API_VERSION: z.string().regex(/^v\d+$/).optional(),
   GOOGLE_ADS_DAILY_OPERATION_LIMIT: z.coerce.number().int().positive().optional(),
   /** 32 random bytes, base64. Generate: openssl rand -base64 32 */

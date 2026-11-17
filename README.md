@@ -57,7 +57,9 @@ supabase/tests/          RLS tests run against plain Postgres
      (Web application) with redirect URI
      `http://localhost:3000/api/google/callback`. The Google Ads API must be
      enabled on that Cloud project.
-   - `GOOGLE_ADS_DEVELOPER_TOKEN`: from your Google Ads manager account.
+   - No developer token: since 9 Sept 2026 Google Ads API access belongs to
+     the Google Cloud project that owns the OAuth client. Enable the Google
+     Ads API there and apply for Explorer access on its Overview page.
    - `TOKEN_ENCRYPTION_KEY`: `openssl rand -base64 32`. Losing it means every
      user must reconnect; changing it needs `TOKEN_ENCRYPTION_KEY_PREVIOUS`.
    - Develop against a Google Ads **test account** only.
