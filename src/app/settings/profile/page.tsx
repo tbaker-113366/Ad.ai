@@ -49,6 +49,10 @@ export default async function ProfilePage({
       <form action={saveProfile} className="flex flex-col gap-5">
         {onboarding && <input type="hidden" name="onboarding" value="1" />}
         <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Your website</span>
+          <input name="website" inputMode="url" defaultValue={business.website ?? ""} placeholder="e.g. acme.co.uk" className={input} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">1. What do you sell?</span>
           <textarea name="offering" rows={2} defaultValue={p?.offering ?? ""} placeholder="e.g. Emergency plumbing and boiler repairs" className={input} />
         </label>

@@ -17,7 +17,15 @@ const optionalMoney = z
   })
   .transform((v) => (v === "" ? null : unitsToMicros(Number(v))));
 
+const website = z
+  .string()
+  .trim()
+  .max(500)
+  .transform((v) => (v === "" ? null : /^https?:\/\//i.test(v) ? v : `https://${v}`))
+  .refine((v) => v === null || z.url().safeParse(v).success, { message: "Enter your website, e.g. acme.co.uk" });
+
 export const profileFormSchema = z.object({
+  website,
   offering: z.string().trim().max(1000).transform((v) => v || null),
   locations_served: list,
   target_cpa_micros: optionalMoney,
@@ -29,6 +37,7 @@ export const profileFormSchema = z.object({
 export function parseProfileForm(formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "");
   return profileFormSchema.safeParse({
+    website: get("website"),
     offering: get("offering"),
     locations_served: get("locations_served"),
     target_cpa_micros: get("target_cpa"),

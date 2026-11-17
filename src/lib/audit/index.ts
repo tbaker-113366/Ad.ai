@@ -17,6 +17,7 @@ import { weakAds } from "./checks/13-weak-ads";
 import { missingAssets } from "./checks/14-missing-assets";
 import { autoAppliedRecommendations } from "./checks/15-auto-applied-recommendations";
 import { invalidClicks } from "./checks/16-invalid-clicks";
+import { paidOrganicOverlap } from "./checks/17-paid-organic-overlap";
 
 export const ALL_CHECKS: AuditCheck[] = [
   conversionTrackingMissing,
@@ -35,6 +36,7 @@ export const ALL_CHECKS: AuditCheck[] = [
   missingAssets,
   autoAppliedRecommendations,
   invalidClicks,
+  paidOrganicOverlap,
 ];
 
 export const CHECK_COUNT = ALL_CHECKS.length;

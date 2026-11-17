@@ -10,6 +10,9 @@ import { runAudit } from "@/lib/audit";
 import type { AuditProfile, WasteItem } from "@/lib/audit/types";
 import { compareAudits, shouldAlertNewWaste, type AuditSnapshot } from "@/lib/audit/compare";
 import { formatMoney } from "@/lib/money";
+import { accessTokenProvider } from "@/lib/google/connections";
+import { listSites, pickSite, queryOrganic, SEARCH_CONSOLE_SCOPE } from "@/lib/google/searchConsole";
+import type { AuditData } from "@/lib/audit/types";
 
 import { AUDIT_STEPS } from "./auditSteps";
 
@@ -33,7 +36,8 @@ export const runAuditJob = inngest.createFunction(
         .select(
           "id, status, business_id, ad_account_id, " +
             "ad_accounts!inner(id, customer_id, login_customer_id, currency, time_zone, status, " +
-            "google_connections!inner(id, business_id, refresh_token_encrypted, status))",
+            "google_connections!inner(id, business_id, refresh_token_encrypted, status, scopes)), " +
+            "businesses!inner(website)",
         )
         .eq("id", auditId)
         .single();
@@ -49,8 +53,15 @@ export const runAuditJob = inngest.createFunction(
           currency: string;
           time_zone: string;
           status: string;
-          google_connections: { id: string; business_id: string; refresh_token_encrypted: string; status: string };
+          google_connections: {
+            id: string;
+            business_id: string;
+            refresh_token_encrypted: string;
+            status: string;
+            scopes: string[] | null;
+          };
         };
+        businesses: { website: string | null };
       };
       if (audit.status === "succeeded") return { skipped: "already done" };
       const account = audit.ad_accounts;
@@ -91,12 +102,23 @@ export const runAuditJob = inngest.createFunction(
             };
 
             await setStep(1);
-            const client = adsClientFactory(conn, (n) => ctx.addApiOperations(n))(account.login_customer_id);
+            const getToken = accessTokenProvider(conn);
+            const client = adsClientFactory(conn, (n) => ctx.addApiOperations(n), getToken)(account.login_customer_id);
+            const hasSearchConsole = (conn.scopes ?? []).includes(SEARCH_CONSOLE_SCOPE);
+            const fetchOrganic = hasSearchConsole
+              ? async (from: string, to: string): Promise<AuditData["organic"]> => {
+                  const token = await getToken();
+                  const site = pickSite(await listSites(token), audit.businesses.website);
+                  if (!site) return { status: "no_site", siteUrl: null, queries: [] };
+                  return { status: "ok", siteUrl: site.siteUrl, queries: await queryOrganic(token, site.siteUrl, from, to) };
+                }
+              : undefined;
             const data = await loadAuditData({
               client,
               customerId: account.customer_id,
               currency: account.currency,
               timeZone: account.time_zone,
+              fetchOrganic,
             });
 
             await setStep(2);
@@ -140,6 +162,8 @@ export const runAuditJob = inngest.createFunction(
                 total_spend_micros: data.totals.costMicros,
                 blocks_autopilot: result.blocksAutopilot,
                 skipped_checks: result.skippedChecks,
+                organic_status: data.organic.status,
+                organic_site: data.organic.siteUrl,
               })
               .eq("id", auditId);
 

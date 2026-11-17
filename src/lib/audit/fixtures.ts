@@ -126,6 +126,12 @@ export function healthyData(overrides: Partial<AuditData> = {}): AuditData {
     campaignAssetTypes: {},
     autoApplyTypes: [],
     invalidClicks: { clicks: 700, invalidClicks: 21 },
+    keywordCompetition: {},
+    organic: {
+      status: "ok",
+      siteUrl: "sc-domain:acme.co.uk",
+      queries: [{ query: "acme plumbing", position: 1.2, clicks: 300, impressions: 900 }],
+    },
     unavailable: [],
     ...overrides,
   };

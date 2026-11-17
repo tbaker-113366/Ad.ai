@@ -107,8 +107,33 @@ describe("loadAuditData", () => {
     const data = await loadAuditData({ client, ...base });
     expect(data.windowDays).toBe(90);
     expect(data.from).toBe("2026-08-19");
-    expect(data.unavailable).toEqual(["autoApply"]);
-    expect(client.calls).toHaveLength(16);
+    expect(data.unavailable).toEqual(["autoApply", "organic"]);
+    expect(data.organic.status).toBe("no_permission");
+    expect(client.calls).toHaveLength(17);
+  });
+
+  it("passes the audit window to Search Console and keeps a failure non-fatal", async () => {
+    const client = fakeClient(() => []);
+    const ok = await loadAuditData({
+      client,
+      ...base,
+      fetchOrganic: async (from, to) => ({ status: "ok", siteUrl: "sc-domain:a.com", queries: [{ query: `${from}..${to}`, position: 1, clicks: 1, impressions: 1 }] }),
+    });
+    expect(ok.organic).toMatchObject({ status: "ok", queries: [{ query: "2026-08-19..2026-11-16" }] });
+    expect(ok.unavailable).not.toContain("organic");
+
+    const failed = await loadAuditData({ client, ...base, fetchOrganic: async () => { throw new Error("boom"); } });
+    expect(failed.organic.status).toBe("error");
+    expect(failed.unavailable).toContain("organic");
+  });
+
+  it("maps keyword competition shares", () => {
+    expect(
+      map.keywordCompetition([
+        { adGroup: { id: "1" }, adGroupCriterion: { criterionId: "2" }, metrics: { searchAbsoluteTopImpressionShare: 0.9, searchRankLostImpressionShare: 0.05 } },
+        { adGroup: { id: "1" }, adGroupCriterion: { criterionId: "3" }, metrics: {} },
+      ]),
+    ).toEqual({ "1~2": { absoluteTopShare: 0.9, rankLostShare: 0.05 }, "1~3": { absoluteTopShare: null, rankLostShare: null } });
   });
 
   it("uses 30 days for busier accounts", async () => {

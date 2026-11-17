@@ -83,9 +83,9 @@ made-up data is at `/audit/sample`.
 
 1. Connecting an account queues `audit.run`. The user watches live progress
    at `/audits/<id>`.
-2. `lib/audit/load.ts` runs ~16 GAQL queries in parallel over the last 30
+2. `lib/audit/load.ts` runs ~17 GAQL queries in parallel over the last 30
    complete days (90 for low-volume accounts).
-3. Each of the 16 checks in `lib/audit/checks/` is a pure function
+3. Each of the 17 checks in `lib/audit/checks/` is a pure function
    `run(data, profile) → findings`, tested with fixture data for both the
    trigger and no-trigger cases.
 4. Score starts at 100 (critical −20, warning −5, opportunity −3). Monthly
@@ -103,6 +103,17 @@ made-up data is at `/audit/sample`.
 - New waste of at least £50/month and 5% of spend raises an in-app alert
   (email delivery arrives with Phase 5).
 - Check 16 reports Google's own invalid-click figures.
+
+## Paid vs organic (check 17)
+
+The Google consent screen also asks for read-only Search Console access. The
+audit matches paid search terms against the queries the website ranks for
+organically (via the business's website on its profile). A search is flagged
+when it ranks in the top 3 for free, spends real money, and there's little
+sign of competitors (the ad is first ≥80% of the time and outranked ≤10%).
+The advice is a 2-week pause test, not a blanket stop, and no £ waste is
+claimed. Auction Insights (competitor names) isn't in the public API, so
+competition is inferred from impression share.
 
 ## How the Google connection works
 

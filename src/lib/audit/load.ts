@@ -98,6 +98,11 @@ export const QUERIES = {
     SELECT customer_asset.field_type
     FROM customer_asset
     WHERE customer_asset.status = 'ENABLED' AND customer_asset.field_type IN ('SITELINK', 'CALLOUT', 'CALL')`,
+  keywordCompetition: (f: string, t: string) => `
+    SELECT ad_group.id, ad_group_criterion.criterion_id,
+           metrics.search_absolute_top_impression_share, metrics.search_rank_lost_impression_share
+    FROM keyword_view
+    WHERE segments.date BETWEEN '${f}' AND '${t}' AND metrics.impressions > 0`,
   invalidClicks: (f: string, t: string) => `
     SELECT metrics.clicks, metrics.invalid_clicks
     FROM customer WHERE segments.date BETWEEN '${f}' AND '${t}'`,
@@ -235,6 +240,17 @@ export const map = {
   accountAssetTypes(rows: Row[]): string[] {
     return [...new Set(rows.map((r) => s(r.customerAsset?.fieldType)))];
   },
+  keywordCompetition(rows: Row[]): AuditData["keywordCompetition"] {
+    const out: AuditData["keywordCompetition"] = {};
+    const share = (v: unknown) => (v === undefined || v === null ? null : n(v));
+    for (const r of rows) {
+      out[`${s(r.adGroup?.id)}~${s(r.adGroupCriterion?.criterionId)}`] = {
+        absoluteTopShare: share(r.metrics?.searchAbsoluteTopImpressionShare),
+        rankLostShare: share(r.metrics?.searchRankLostImpressionShare),
+      };
+    }
+    return out;
+  },
   invalidClicks(rows: Row[]): AuditData["invalidClicks"] {
     return rows.reduce<AuditData["invalidClicks"]>(
       (acc, r) => ({ clicks: acc.clicks + n(r.metrics?.clicks), invalidClicks: acc.invalidClicks + n(r.metrics?.invalidClicks) }),
@@ -247,9 +263,19 @@ export const map = {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export type LoadInput = { client: AdsClient; customerId: string; currency: string; timeZone: string; now?: Date };
+export type LoadInput = {
+  client: AdsClient;
+  customerId: string;
+  currency: string;
+  timeZone: string;
+  now?: Date;
+  /** Organic rankings for the window (Search Console). Omit when not connected. */
+  fetchOrganic?: (from: string, to: string) => Promise<AuditData["organic"]>;
+};
 
-export async function loadAuditData({ client, customerId, currency, timeZone, now }: LoadInput): Promise<AuditData> {
+const NO_ORGANIC = (status: "no_permission" | "no_site" | "error"): AuditData["organic"] => ({ status, siteUrl: null, queries: [] });
+
+export async function loadAuditData({ client, customerId, currency, timeZone, now, fetchOrganic }: LoadInput): Promise<AuditData> {
   const q = (query: string) => client.searchStream<GaqlRow>(customerId, query) as Promise<Row[]>;
 
   const totals30 = map.totals(await q(QUERIES.totals30()));
@@ -274,7 +300,10 @@ export async function loadAuditData({ client, customerId, currency, timeZone, no
     accountAssets: q(QUERIES.accountAssets()),
     autoApply: q(QUERIES.autoApply()),
     invalidClicks: q(QUERIES.invalidClicks(f, t)),
+    keywordCompetition: q(QUERIES.keywordCompetition(f, t)),
   };
+  // Search Console is a separate API: its failure never fails the audit.
+  const organicPromise = fetchOrganic ? fetchOrganic(w.from, w.to).catch(() => NO_ORGANIC("error")) : Promise.resolve(NO_ORGANIC("no_permission"));
   const keys = Object.keys(sources) as Array<keyof typeof sources>;
   const settled = await Promise.allSettled(Object.values(sources));
 
@@ -304,6 +333,9 @@ export async function loadAuditData({ client, customerId, currency, timeZone, no
   if (failed.has("campaignAssets") || failed.has("accountAssets")) unavailable.add("assets");
   if (failed.has("autoApply")) unavailable.add("autoApply");
   if (failed.has("invalidClicks")) unavailable.add("invalidClicks");
+  if (failed.has("keywordCompetition")) unavailable.add("keywordCompetition");
+  const organic = await organicPromise;
+  if (organic.status !== "ok") unavailable.add("organic");
 
   const campaigns = map.campaigns(rows.campaigns);
   return {
@@ -330,6 +362,8 @@ export async function loadAuditData({ client, customerId, currency, timeZone, no
     campaignAssetTypes: map.campaignAssetTypes(rows.campaignAssets),
     autoApplyTypes: map.autoApplyTypes(rows.autoApply),
     invalidClicks: map.invalidClicks(rows.invalidClicks),
+    keywordCompetition: map.keywordCompetition(rows.keywordCompetition),
+    organic,
     unavailable: [...unavailable],
   };
 }

@@ -1,9 +1,11 @@
 import { ReconnectRequiredError } from "@/lib/ads/errors";
+import { SEARCH_CONSOLE_SCOPE } from "./searchConsole";
 
 /** Google OAuth for Google Ads access (separate from app sign-in). */
 
 export const GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
-const SCOPES = ["openid", "email", GOOGLE_ADS_SCOPE];
+// Search Console is optional: it powers the paid-vs-organic check.
+const SCOPES = ["openid", "email", GOOGLE_ADS_SCOPE, SEARCH_CONSOLE_SCOPE];
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";

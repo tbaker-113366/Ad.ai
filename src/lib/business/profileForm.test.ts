@@ -13,6 +13,7 @@ describe("parseProfileForm", () => {
       form({ offering: " Plumbing ", locations_served: "Leeds, Bradford\nLeeds", target_cpa: "£35.50", monthly_budget: "1,500", brand_terms: "Acme", irrelevant_terms: "" }),
     );
     expect(r.success && r.data).toEqual({
+      website: null,
       offering: "Plumbing",
       locations_served: ["leeds", "bradford"],
       target_cpa_micros: 35_500_000,
@@ -25,6 +26,12 @@ describe("parseProfileForm", () => {
   it("allows everything to be skipped", () => {
     const r = parseProfileForm(form({}));
     expect(r.success && r.data).toMatchObject({ offering: null, target_cpa_micros: null, monthly_budget_micros: null });
+  });
+
+  it("accepts a bare domain as the website", () => {
+    const r = parseProfileForm(form({ website: "acme.co.uk" }));
+    expect(r.success && r.data.website).toBe("https://acme.co.uk");
+    expect(parseProfileForm(form({ website: "not a site" })).success).toBe(false);
   });
 
   it("rejects nonsense amounts", () => {

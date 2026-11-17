@@ -81,6 +81,16 @@ export function sampleAudit(): { data: AuditData; profile: AuditProfile; account
     accountAssetTypes: ["SITELINK"],
     autoApplyTypes: ["CAMPAIGN_BUDGET"],
     invalidClicks: { clicks: 980, invalidClicks: 240 },
+    // Emergency Plumber keywords: ad is first almost every time, rarely outranked.
+    keywordCompetition: { "ag1~k1": { absoluteTopShare: 0.94, rankLostShare: 0.03 } },
+    organic: {
+      status: "ok",
+      siteUrl: "sc-domain:acmeplumbing.example",
+      queries: [
+        { query: "emergency plumber leeds", position: 1.6, clicks: 140, impressions: 1900 },
+        { query: "plumber near me", position: 7.8, clicks: 12, impressions: 2400 },
+      ],
+    },
   };
   return {
     data,

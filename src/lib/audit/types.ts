@@ -100,6 +100,12 @@ export type AuditData = {
   accountAssetTypes: string[];
   /** Enabled asset field types per campaign. */
   campaignAssetTypes: Record<string, string[]>;
+  /** Competition signals per keyword, keyed `${adGroupId}~${criterionId}`. */
+  keywordCompetition: Record<string, { absoluteTopShare: number | null; rankLostShare: number | null }>;
+  /** Organic rankings from Search Console, or null with the reason. */
+  organic:
+    | { status: "ok"; siteUrl: string; queries: Array<{ query: string; position: number; clicks: number; impressions: number }> }
+    | { status: "no_permission" | "no_site" | "error"; siteUrl: null; queries: [] };
   /** Clicks Google filtered as invalid (and didn't charge for) in the window. */
   invalidClicks: { clicks: number; invalidClicks: number };
   /** Recommendation types with auto-apply turned on. */

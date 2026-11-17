@@ -22,6 +22,7 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
     .select(
       "id, status, progress_step, score, est_monthly_waste_micros, currency, window_from, window_to, window_days, error, ad_account_id, " +
         "previous_audit_id, resolved_count, new_count, stopped_waste_micros, new_waste_micros, previous:previous_audit_id(finished_at), " +
+        "organic_status, " +
         "ad_accounts(descriptive_name, customer_id, currency)",
     )
     .eq("id", id)
@@ -47,6 +48,7 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
     stopped_waste_micros: number | null;
     new_waste_micros: number | null;
     previous: { finished_at: string } | null;
+    organic_status: "ok" | "no_permission" | "no_site" | "error" | null;
   };
   const accountName = a.ad_accounts.descriptive_name ?? formatCustomerId(a.ad_accounts.customer_id);
   const canEdit = role === "owner" || role === "admin";
@@ -114,6 +116,39 @@ export default async function AuditPage({ params }: { params: Promise<{ id: stri
         )}
         ctaHref="/pricing"
       />
+      {a.organic_status && a.organic_status !== "ok" && (
+        <section className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-700">
+          <h2 className="font-semibold">One more check is available</h2>
+          <p className="mt-1">
+            We can spot searches you pay for even though your website already ranks near the top for free — but we need
+            Google Search Console.
+          </p>
+          <p className="mt-2">
+            {a.organic_status === "no_permission" ? (
+              <>
+                <a href="/api/google/connect" className="font-medium underline">
+                  Reconnect Google
+                </a>{" "}
+                and tick the Search Console box.
+              </>
+            ) : a.organic_status === "no_site" ? (
+              <>
+                We couldn&apos;t find your website in Search Console.{" "}
+                <a href="https://search.google.com/search-console" className="font-medium underline" target="_blank" rel="noreferrer">
+                  Add and verify it
+                </a>{" "}
+                (free), check the website on your{" "}
+                <a href="/settings/profile" className="underline">
+                  business profile
+                </a>
+                , then run the audit again.
+              </>
+            ) : (
+              "We couldn't reach Search Console this time; it'll be tried again on your next audit."
+            )}
+          </p>
+        </section>
+      )}
       </>
     );
   }

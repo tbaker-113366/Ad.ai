@@ -31,14 +31,11 @@ export type StoredConnection = { id: string; business_id: string; refresh_token_
  * The refresh token is decrypted here, inside the job worker, and never
  * leaves this closure.
  */
-export function adsClientFactory(
-  connection: StoredConnection,
-  onOperations?: (count: number) => void,
-): (loginCustomerId: string | null) => AdsClient {
+/** Returns a function giving a valid access token, refreshed and cached as needed. */
+export function accessTokenProvider(connection: StoredConnection): () => Promise<string> {
   const env = googleEnv();
   let cached: { token: string; expiresAt: number } | null = null;
-
-  const getAccessToken = async () => {
+  return async () => {
     if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
     const refreshToken = decryptRefreshToken(connection.refresh_token_encrypted, connection.business_id);
     const { accessToken, expiresIn } = await refreshAccessToken(
@@ -48,7 +45,14 @@ export function adsClientFactory(
     cached = { token: accessToken, expiresAt: Date.now() + expiresIn * 1000 };
     return accessToken;
   };
+}
 
+export function adsClientFactory(
+  connection: StoredConnection,
+  onOperations?: (count: number) => void,
+  getAccessToken: () => Promise<string> = accessTokenProvider(connection),
+): (loginCustomerId: string | null) => AdsClient {
+  const env = googleEnv();
   return (loginCustomerId) =>
     createAdsClient({
       developerToken: env.GOOGLE_ADS_DEVELOPER_TOKEN,

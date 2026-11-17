@@ -60,6 +60,16 @@ export const THRESHOLDS = {
     budgetHeavy: { cpaMultiple: 1.5, minShare: 0.25 },
     /** Check 13. */
     minRsasPerAdGroup: 2,
+    /**
+     * Check 17: paid clicks on searches the site already ranks for organically.
+     * Low competition = ad is first almost every time and rarely outranked.
+     */
+    organicOverlap: {
+      maxOrganicPosition: 3,
+      minOrganicImpressions: 50,
+      minPaidSpend: 20,
+      lowCompetition: { minAbsoluteTopShare: 0.8, maxRankLostShare: 0.1 },
+    },
     /** Check 16: Google-filtered invalid click rate worth flagging. */
     invalidClicks: { minRate: 0.15, minInvalidClicks: 50 },
     /** Scoring: start at 100, subtract per finding, floor at 0. */
