@@ -37,7 +37,11 @@ export async function signUpWithPassword(formData: FormData) {
     password: parsed.data.password,
     options: { emailRedirectTo: callbackUrl(next) },
   });
-  if (error) redirect(back("/signup", formData, { error: friendlyAuthError(error.message), email: parsed.data.email }));
+  if (error) {
+    // The real reason goes to the server logs (never the password or email).
+    console.error("auth.signUp failed", { status: error.status, code: error.code, message: error.message });
+    redirect(back("/signup", formData, { error: friendlyAuthError(error.message), email: parsed.data.email }));
+  }
   // Supabase returns a fake user with no identities for an existing email
   // (so it can't be used to discover accounts). Treat it as "check your inbox".
   if (data.session) redirect(next);
@@ -49,7 +53,10 @@ export async function signInWithPassword(formData: FormData) {
   if (!parsed.success) redirect(back("/login", formData, { error: parsed.error.issues[0].message, email: String(formData.get("email") ?? "") }));
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) redirect(back("/login", formData, { error: friendlyAuthError(error.message), email: parsed.data.email }));
+  if (error) {
+    console.error("auth.signIn failed", { status: error.status, code: error.code, message: error.message });
+    redirect(back("/login", formData, { error: friendlyAuthError(error.message), email: parsed.data.email }));
+  }
   redirect(safeNext(formData.get("next")));
 }
 

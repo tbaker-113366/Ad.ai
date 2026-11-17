@@ -30,6 +30,9 @@ export function friendlyAuthError(message: string | undefined | null): string {
     return `Choose a stronger password: at least ${MIN_PASSWORD} characters, not a common one.`;
   if (m.includes("rate limit") || m.includes("too many") || m.includes("security purposes"))
     return "Too many attempts. Please wait a minute and try again.";
+  if (m.includes("error sending") || m.includes("smtp") || m.includes("sending confirmation") || m.includes("sending recovery"))
+    return "We couldn't send you an email just now. Please try again in a few minutes.";
+  if (m.includes("signups not allowed") || m.includes("signup is disabled")) return "New sign-ups are paused right now.";
   if (m.includes("same password") || m.includes("different from the old"))
     return "Choose a password you haven't used before.";
   return "Something went wrong. Please try again.";

@@ -28,6 +28,7 @@ describe("auth forms", () => {
     expect(friendlyAuthError("Email not confirmed")).toMatch(/confirm your email/);
     expect(friendlyAuthError("Password should be at least 8 characters.")).toMatch(/stronger password/);
     expect(friendlyAuthError("email rate limit exceeded")).toMatch(/Too many attempts/);
+    expect(friendlyAuthError("Error sending confirmation email")).toMatch(/couldn't send you an email/);
     expect(friendlyAuthError("something odd")).toBe("Something went wrong. Please try again.");
   });
 });
