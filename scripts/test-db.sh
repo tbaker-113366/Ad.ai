@@ -10,9 +10,12 @@ trap 'dropdb --if-exists "$DB"' EXIT
 
 PSQL=(psql -v ON_ERROR_STOP=1 -q -X -d "$DB")
 "${PSQL[@]}" -f supabase/tests/auth_stub.sql
+"${PSQL[@]}" -f supabase/tests/grants.sql
 for f in supabase/migrations/*.sql; do
   echo "applying $f"
   "${PSQL[@]}" -f "$f"
 done
-"${PSQL[@]}" -f supabase/tests/grants.sql
-"${PSQL[@]}" -o /dev/null -f supabase/tests/rls_test.sql
+for t in supabase/tests/*_test.sql; do
+  echo "running $t"
+  "${PSQL[@]}" -o /dev/null -f "$t"
+done

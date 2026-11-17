@@ -23,3 +23,20 @@ export function publicEnv() {
 export function serverEnv() {
   return serverSchema.parse(process.env);
 }
+
+/** Google OAuth + Google Ads settings. Server-only. */
+const googleSchema = z.object({
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().min(1),
+  GOOGLE_ADS_API_VERSION: z.string().regex(/^v\d+$/).optional(),
+  GOOGLE_ADS_DAILY_OPERATION_LIMIT: z.coerce.number().int().positive().optional(),
+  /** 32 random bytes, base64. Generate: openssl rand -base64 32 */
+  TOKEN_ENCRYPTION_KEY: z.string().min(1),
+  /** Previous key during rotation, so old tokens still decrypt. */
+  TOKEN_ENCRYPTION_KEY_PREVIOUS: z.string().min(1).optional(),
+});
+
+export function googleEnv() {
+  return googleSchema.parse(process.env);
+}

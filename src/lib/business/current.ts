@@ -1,6 +1,16 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
+export type Role = "owner" | "admin" | "viewer";
+export type Business = {
+  id: string;
+  name: string;
+  website: string | null;
+  industry: string | null;
+  country: string;
+  currency: string;
+};
+
 /** The signed-in user's business (v1: one business per login), or null. */
 export async function getCurrentBusiness() {
   const supabase = await createClient();
@@ -15,14 +25,14 @@ export async function getCurrentBusiness() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const business = (data?.businesses ?? null) as unknown as {
-    id: string;
-    name: string;
-    website: string | null;
-    industry: string | null;
-    country: string;
-    currency: string;
-  } | null;
+  const business = (data?.businesses ?? null) as unknown as Business | null;
+  return { user, business, role: (data?.role ?? null) as Role | null } as const;
+}
 
-  return { user, business, role: (data?.role ?? null) as "owner" | "admin" | "viewer" | null } as const;
+/** For server actions/routes that change settings: owner or admin only. */
+export async function requireManager() {
+  const ctx = await getCurrentBusiness();
+  if (!ctx.user || !ctx.business) throw new Error("Not signed in");
+  if (ctx.role !== "owner" && ctx.role !== "admin") throw new Error("Only owners and admins can change this");
+  return { user: ctx.user, business: ctx.business, role: ctx.role };
 }

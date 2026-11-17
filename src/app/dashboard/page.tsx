@@ -1,23 +1,53 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentBusiness } from "@/lib/business/current";
 import { createClient } from "@/lib/supabase/server";
 import { PRODUCT_NAME } from "@/lib/config";
+import { formatMoney } from "@/lib/money";
+import { formatCustomerId, formatDateTime } from "@/lib/format";
+import { ReconnectBanner } from "@/components/ReconnectBanner";
 import { runTestJob } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+type Totals = { cost: number; clicks: number; conversions: number };
+
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ connected?: string }> }) {
   const { user, business } = await getCurrentBusiness();
   if (!user) redirect("/login");
   if (!business) redirect("/onboarding");
+  const { connected } = await searchParams;
 
   const supabase = await createClient();
-  const { data: runs } = await supabase
-    .from("job_runs")
-    .select("id, job_name, status, started_at, finished_at, error")
-    .eq("business_id", business.id)
-    .order("started_at", { ascending: false })
-    .limit(10);
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const [{ data: accounts }, { data: revoked }, { data: metrics }, { data: runs }] = await Promise.all([
+    supabase
+      .from("ad_accounts")
+      .select("id, customer_id, descriptive_name, currency, last_synced_at, initial_sync_done")
+      .eq("status", "active")
+      .order("descriptive_name"),
+    supabase.from("google_connections").select("google_user_email").eq("status", "revoked"),
+    supabase
+      .from("daily_metrics")
+      .select("ad_account_id, cost_micros, clicks, conversions")
+      .gte("date", since)
+      .limit(20_000),
+    supabase
+      .from("job_runs")
+      .select("id, job_name, status, started_at, error")
+      .eq("business_id", business.id)
+      .order("started_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  const totals = new Map<string, Totals>();
+  for (const m of metrics ?? []) {
+    const t = totals.get(m.ad_account_id) ?? { cost: 0, clicks: 0, conversions: 0 };
+    t.cost += Number(m.cost_micros);
+    t.clicks += Number(m.clicks);
+    t.conversions += Number(m.conversions);
+    totals.set(m.ad_account_id, t);
+  }
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12">
@@ -31,15 +61,74 @@ export default async function DashboardPage() {
         </form>
       </header>
 
+      <ReconnectBanner emails={(revoked ?? []).map((r) => r.google_user_email)} />
+      {connected && (
+        <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Connected. We&apos;re pulling your last 90 days of data — this usually takes under a minute.
+        </p>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-medium">Your Google Ads accounts · last 30 days</h2>
+          <Link href="/accounts" className="text-sm text-slate-600 underline">
+            Manage accounts
+          </Link>
+        </div>
+
+        {(accounts ?? []).length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center">
+            <p className="text-slate-600">Connect Google Ads to see how much you could be saving.</p>
+            <Link
+              href="/accounts"
+              className="mt-4 inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Connect Google Ads
+            </Link>
+          </div>
+        ) : (
+          <ul className="grid gap-3">
+            {(accounts ?? []).map((a) => {
+              const t = totals.get(a.id) ?? { cost: 0, clicks: 0, conversions: 0 };
+              return (
+                <li key={a.id} className="rounded-lg border border-slate-200 p-4">
+                  <p className="font-medium">{a.descriptive_name ?? formatCustomerId(a.customer_id)}</p>
+                  {!a.initial_sync_done ? (
+                    <p className="mt-1 text-sm text-slate-500">Syncing your data…</p>
+                  ) : (
+                    <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <dt className="text-slate-500">Spend</dt>
+                        <dd className="text-lg font-semibold">{formatMoney(t.cost, a.currency)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Clicks</dt>
+                        <dd className="text-lg font-semibold">{t.clicks.toLocaleString("en-GB")}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">Leads &amp; sales</dt>
+                        <dd className="text-lg font-semibold">
+                          {t.conversions.toLocaleString("en-GB", { maximumFractionDigits: 1 })}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
+                  <p className="mt-2 text-xs text-slate-500">Last synced {formatDateTime(a.last_synced_at)}</p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
       <section className="rounded-lg border border-slate-200 p-5">
         <h2 className="font-medium">Background jobs</h2>
-        <p className="mt-1 text-sm text-slate-600">Run a test job to check the job runner is working.</p>
+        <p className="mt-1 text-sm text-slate-600">Recent background work for your account.</p>
         <form action={runTestJob} className="mt-4">
-          <button className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+          <button className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
             Run test job
           </button>
         </form>
-
         <ul className="mt-5 divide-y divide-slate-100 text-sm">
           {(runs ?? []).length === 0 && <li className="py-2 text-slate-500">No job runs yet.</li>}
           {(runs ?? []).map((run) => (
@@ -47,17 +136,13 @@ export default async function DashboardPage() {
               <span className="font-mono">{run.job_name}</span>
               <span
                 className={
-                  run.status === "succeeded"
-                    ? "text-green-700"
-                    : run.status === "failed"
-                      ? "text-red-700"
-                      : "text-slate-500"
+                  run.status === "succeeded" ? "text-green-700" : run.status === "failed" ? "text-red-700" : "text-slate-500"
                 }
               >
                 {run.status}
               </span>
               <time className="text-slate-500" dateTime={run.started_at}>
-                {new Date(run.started_at).toLocaleString("en-GB")}
+                {formatDateTime(run.started_at)}
               </time>
             </li>
           ))}
