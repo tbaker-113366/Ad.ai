@@ -5,7 +5,7 @@ import { exchangeCode, GOOGLE_ADS_SCOPE, type ConnectKind } from "@/lib/google/o
 import { OAUTH_KIND_COOKIE, OAUTH_NEXT_COOKIE, OAUTH_STATE_COOKIE, safeNextPath, statesMatch } from "@/lib/google/state";
 import { encryptRefreshToken } from "@/lib/google/connections";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { inngest, EVENTS } from "@/inngest/client";
+import { EVENTS, sendEvents } from "@/inngest/client";
 
 /** Google redirects here after consent. Stores the encrypted refresh token. */
 export async function GET(request: NextRequest) {
@@ -78,6 +78,11 @@ export async function GET(request: NextRequest) {
     .single();
   if (error || !conn) return fail("Could not save your Google connection. Please try again.");
 
-  if (kind === "ads" && hasAds) await inngest.send({ name: EVENTS.connectionCreated, data: { connectionId: conn.id } });
+  if (kind === "ads" && hasAds) {
+    // The connection is saved either way; if the job can't be queued, the
+    // account picker shows "Try again" instead of waiting forever.
+    const queued = await sendEvents({ name: EVENTS.connectionCreated, data: { connectionId: conn.id } });
+    if (!queued) await admin.from("google_connections").update({ discovery_status: "failed" }).eq("id", conn.id);
+  }
   return clear(NextResponse.redirect(new URL(next, request.url)));
 }

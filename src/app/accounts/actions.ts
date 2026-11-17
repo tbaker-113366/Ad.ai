@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptRefreshToken } from "@/lib/google/connections";
 import { revokeToken } from "@/lib/google/oauth";
 import type { DiscoveredAccount } from "@/lib/ads/discovery";
-import { inngest, EVENTS } from "@/inngest/client";
+import { EVENTS, sendEvents } from "@/inngest/client";
 import { requestAudit } from "@/lib/audit/request";
 
 async function loadConnection(connectionId: string, businessId: string) {
@@ -60,7 +60,8 @@ export async function connectAccounts(formData: FormData) {
   if (error) redirect(`${back}?error=${encodeURIComponent("Could not connect those accounts")}`);
 
   const ids = (rows ?? []).map((r) => r.id as string);
-  await inngest.send(ids.map((adAccountId) => ({ name: EVENTS.syncRequested, data: { adAccountId } })));
+  // If this can't be queued, the nightly sync picks the accounts up.
+  await sendEvents(ids.map((adAccountId) => ({ name: EVENTS.syncRequested, data: { adAccountId } })));
   if (onboarding) {
     // Search Console comes next; the audit starts when onboarding finishes.
     await admin.from("business_profiles").update({ onboarding_step: 3 }).eq("business_id", business.id);
@@ -114,7 +115,7 @@ export async function disconnectGoogle(formData: FormData) {
 export async function rediscover(formData: FormData) {
   const { business } = await requireManager();
   const { admin, conn } = await loadConnection(String(formData.get("connectionId") ?? ""), business.id);
-  await admin.from("google_connections").update({ discovery_status: "pending" }).eq("id", conn.id);
-  await inngest.send({ name: EVENTS.connectionCreated, data: { connectionId: conn.id } });
+  const queued = await sendEvents({ name: EVENTS.connectionCreated, data: { connectionId: conn.id } });
+  await admin.from("google_connections").update({ discovery_status: queued ? "pending" : "failed" }).eq("id", conn.id);
   revalidatePath("/accounts");
 }
