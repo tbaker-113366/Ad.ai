@@ -15,6 +15,7 @@ import { listSites, pickSite, queryOrganic, SEARCH_CONSOLE_SCOPE } from "@/lib/g
 import type { AuditData } from "@/lib/audit/types";
 
 import { AUDIT_STEPS } from "./auditSteps";
+import { sendWeeklyReport } from "@/lib/email/weeklyDispatch";
 import { targetCpaFromProfile } from "@/lib/audit/target";
 import { checkedCounts, scoreIfFixed, whatsWorking } from "@/lib/audit/presentation";
 
@@ -41,7 +42,7 @@ export async function runAuditNow(auditId: string) {
   const { data: row, error } = await admin
     .from("audits")
     .select(
-      "id, status, business_id, ad_account_id, " +
+      "id, status, business_id, ad_account_id, trigger, " +
         "ad_accounts!inner(id, customer_id, login_customer_id, currency, time_zone, status, " +
         "google_connections!inner(id, business_id, refresh_token_encrypted, status, scopes)), " +
         "businesses!inner(website)",
@@ -52,6 +53,7 @@ export async function runAuditNow(auditId: string) {
   const audit = row as unknown as {
     id: string;
     status: string;
+    trigger: string;
     business_id: string;
     ad_account_id: string;
     ad_accounts: {
@@ -244,6 +246,9 @@ export async function runAuditNow(auditId: string) {
           }
           ctx.setMetadata("comparison", cmp);
         }
+
+        // Monday re-audits end with the weekly "things to improve" email.
+        if (audit.trigger === "weekly") ctx.setMetadata("weeklyEmail", await sendWeeklyReport(admin, auditId));
 
         ctx.setMetadata("score", result.score);
         ctx.setMetadata("findings", result.findings.length);

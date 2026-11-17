@@ -21,7 +21,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("business_profiles")
-    .select("base_location, travel_radius_miles, customer_value_micros, who_runs_ads, lead_types, spend_band, target_cpa_micros, brand_terms, irrelevant_terms")
+    .select("base_location, travel_radius_miles, customer_value_micros, who_runs_ads, lead_types, spend_band, target_cpa_micros, brand_terms, irrelevant_terms, weekly_email")
     .eq("business_id", business.id)
     .single();
   const money = (v: number | null | undefined) => (v ? String(microsToUnits(v)) : "");
@@ -88,6 +88,14 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                   <ChoiceRow type="radio" name="spend_band" value="over_5000" label="Over £5,000" defaultChecked={p?.spend_band === "over_5000"} />
                 </div>
               </fieldset>
+            </Card>
+
+            <Card className="flex flex-col gap-3 p-6">
+              <h2 className="text-lg font-bold">Emails</h2>
+              <label className="flex items-start gap-3 text-[15px]">
+                <input type="checkbox" name="weekly_email" defaultChecked={p?.weekly_email ?? true} className="mt-1 size-4 accent-[var(--saved)]" />
+                <span>Send owners and admins a weekly email every Monday with the score, what changed and the things to improve.</span>
+              </label>
             </Card>
 
             <Card className="flex flex-col gap-5 p-6">

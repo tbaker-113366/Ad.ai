@@ -13,6 +13,9 @@ export const purgeDisconnectedJob = inngest.createFunction(
         const { data, error } = await admin.rpc("purge_disconnected", { p_days: 30 });
         if (error) throw new Error(error.message);
         ctx.setMetadata("result", data);
+        const { data: clicks, error: clickError } = await admin.rpc("purge_click_events", { p_days: 90 });
+        if (clickError) throw new Error(clickError.message);
+        ctx.setMetadata("clickEventsDeleted", clicks);
         return data;
       });
     }),

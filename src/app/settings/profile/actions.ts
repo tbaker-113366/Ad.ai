@@ -30,6 +30,7 @@ export async function saveProfile(formData: FormData) {
         target_cpa_micros: extra.data.target_cpa_micros,
         brand_terms: extra.data.brand_terms.length ? extra.data.brand_terms : [name.toLowerCase()],
         irrelevant_terms: extra.data.irrelevant_terms,
+        weekly_email: formData.get("weekly_email") === "on",
       })
       .eq("business_id", business.id),
   ]);

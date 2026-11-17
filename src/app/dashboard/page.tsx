@@ -7,7 +7,7 @@ import { onboardingPath } from "@/lib/business/onboardingProgress";
 import { formatMoney } from "@/lib/money";
 import { formatCustomerId, formatDateTime } from "@/lib/format";
 import { ReconnectBanner } from "@/components/ReconnectBanner";
-import { runTestJob } from "./actions";
+import { runTestJob, sendMeWeeklyReport } from "./actions";
 import { rerunAudit } from "@/app/audits/[id]/actions";
 import { dismissAlert } from "./alertActions";
 
@@ -17,11 +17,11 @@ export const maxDuration = 300;
 
 type Totals = { cost: number; clicks: number; conversions: number };
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ connected?: string }> }) {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ connected?: string; report?: string }> }) {
   const { user, business } = await getCurrentBusiness();
   if (!user) redirect("/login");
   if (!business) redirect("/onboarding/business");
-  const { connected } = await searchParams;
+  const { connected, report } = await searchParams;
 
   const supabase = await createClient();
   const { data: profileRow } = await supabase.from("business_profiles").select("onboarding_step").eq("business_id", business.id).single();
@@ -84,6 +84,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       </header>
 
       <ReconnectBanner emails={(revoked ?? []).map((r) => r.google_user_email)} />
+      {report === "sent" && <p className="rounded-md border border-saved-border bg-saved-bg p-3 text-sm text-saved">Sent. Check your inbox for this week&apos;s report from ads@adiro.ai.</p>}
+      {report === "failed" && <p className="rounded-md border border-destructive-border bg-destructive-bg p-3 text-sm text-destructive">We couldn&apos;t send the report. Run an audit first, and check email sending is set up.</p>}
       {(alerts ?? []).map((al) => (
         <div key={al.id} role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning-border bg-warning-bg p-4 text-sm text-warning">
           <p>{al.message}</p>
@@ -105,6 +107,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           Connected. We&apos;re pulling your last 90 days of data — this usually takes under a minute.
         </p>
       )}
+
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5">
+        <div>
+          <h2 className="text-lg font-bold">Weekly email</h2>
+          <p className="text-sm text-muted-foreground">Every Monday morning: your score, what changed and the things to improve. Change this in Business settings.</p>
+        </div>
+        <form action={sendMeWeeklyReport}>
+          <button className="rounded-lg border border-input bg-card px-4 py-2 text-sm font-semibold hover:bg-muted">Send me this week&apos;s report</button>
+        </form>
+      </section>
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
