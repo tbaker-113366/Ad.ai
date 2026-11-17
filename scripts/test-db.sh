@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Apply all migrations to a throwaway database and run the RLS tests.
+# Needs a Postgres superuser connection: set PGHOST/PGPORT/PGUSER/PGPASSWORD.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+DB="adsai_test_$$"
+createdb "$DB"
+trap 'dropdb --if-exists "$DB"' EXIT
+
+PSQL=(psql -v ON_ERROR_STOP=1 -q -X -d "$DB")
+"${PSQL[@]}" -f supabase/tests/auth_stub.sql
+for f in supabase/migrations/*.sql; do
+  echo "applying $f"
+  "${PSQL[@]}" -f "$f"
+done
+"${PSQL[@]}" -f supabase/tests/grants.sql
+"${PSQL[@]}" -o /dev/null -f supabase/tests/rls_test.sql
