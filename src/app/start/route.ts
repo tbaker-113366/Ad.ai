@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   const { user, business } = await getCurrentBusiness();
 
   if (!user) {
-    const url = new URL("/login", request.url);
+    // New visitors arriving from "Get my free audit" create an account.
+    const url = new URL("/signup", request.url);
     if (website) url.searchParams.set("website", website);
     url.searchParams.set("next", step1);
     return NextResponse.redirect(url);
