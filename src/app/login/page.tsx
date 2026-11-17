@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Globe } from "lucide-react";
-import { LogoMark } from "@/components/brand";
+import { Logo } from "@/components/brand";
 import { PRODUCT_NAME } from "@/lib/config";
 import { Button, Field, Notice, inputClass } from "@/components/ui";
 import { signInWithEmail, signInWithGoogle } from "./actions";
@@ -26,7 +26,7 @@ export default async function LoginPage({
     <div className="grid min-h-screen lg:grid-cols-[1fr_440px]">
       <div className="flex flex-col">
         <header className="flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5" aria-label={`${PRODUCT_NAME} home`}><LogoMark size={28} /><span className="text-lg font-extrabold">{PRODUCT_NAME.toLowerCase()}</span></Link>
+          <Logo height={26} />
           <p className="text-sm text-muted-foreground">Have an account? <Link href="/login?next=/dashboard" className="font-semibold text-link underline underline-offset-4">Sign in</Link></p>
         </header>
         <main className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center px-4 py-12">

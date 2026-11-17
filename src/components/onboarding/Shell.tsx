@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
-import { LogoMark } from "@/components/brand";
-import { PRODUCT_NAME } from "@/lib/config";
+import { Logo } from "@/components/brand";
 import { Notice } from "@/components/ui";
 
 const STEPS = ["Business", "Questions", "Google Ads", "Search Console"];
@@ -29,10 +28,7 @@ export function OnboardingShell({
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5" aria-label={`${PRODUCT_NAME} home`}>
-            <LogoMark size={28} />
-            <span className="text-lg font-extrabold tracking-tight">{PRODUCT_NAME.toLowerCase()}</span>
-          </Link>
+          <Logo height={26} />
           <ol className="hidden items-center gap-3 text-sm md:flex" aria-label="Progress">
             {STEPS.map((s, i) => {
               const n = i + 1;
