@@ -80,6 +80,24 @@ export const THRESHOLDS = {
     /** Scoring: start at 100, subtract per finding, floor at 0. */
     scorePenalty: { critical: 20, warning: 5, opportunity: 3 },
   },
+  /** Fake-click protection: how suspicious each signal makes a paid click (0-100). */
+  clickProtection: {
+    suspiciousAt: 60,
+    retentionDays: 90,
+    weights: {
+      automatedBrowser: 80,
+      botUserAgent: 80,
+      noBrowserDetails: 35,
+      repeatIp3: 45,
+      repeatIp5: 65,
+      repeatDevice3: 40,
+      instantBounce: 25,
+      outsideCountry: 25,
+      timezoneMismatch: 20,
+    },
+    /** A visit shorter than this with no scroll/click/tap counts as an instant bounce. */
+    instantBounceMs: 2000,
+  },
   /** Waste watch: when a new audit raises an in-app alert. */
   alerts: {
     /** New monthly waste (vs the previous audit) needs to reach both of these. */
