@@ -3,6 +3,7 @@ import { Check, Clock, Eye, MousePointerClick, Plug, Search, ShieldCheck, Trendi
 import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 import { Card, Eyebrow, LinkButton } from "@/components/ui";
 import { CHECK_COUNT } from "@/lib/audit";
+import { PRODUCT_NAME } from "@/lib/config";
 import { runAudit } from "@/lib/audit";
 import { sampleAudit } from "@/lib/audit/sample";
 import { formatMoney } from "@/lib/money";
@@ -104,7 +105,7 @@ export default function Home() {
             <div className="mt-10 max-w-3xl overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="bg-muted text-muted-foreground">
-                  <tr><th className="px-4 py-3 font-semibold">What gets checked</th><th className="px-4 py-3 font-semibold">Fake-click blockers</th><th className="px-4 py-3 font-semibold">Tally</th></tr>
+                  <tr><th className="px-4 py-3 font-semibold">What gets checked</th><th className="px-4 py-3 font-semibold">Fake-click blockers</th><th className="px-4 py-3 font-semibold">{PRODUCT_NAME}</th></tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {COMPARE.map((c) => (

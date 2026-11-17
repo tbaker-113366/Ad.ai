@@ -1,6 +1,6 @@
 import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 
-export const metadata = { title: "Privacy policy · Tally" };
+export const metadata = { title: "Privacy policy · Adiro" };
 
 /** Placeholder: the real Privacy policy must be written (and reviewed) before launch. */
 export default function Page() {

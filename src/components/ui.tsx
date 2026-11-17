@@ -2,7 +2,7 @@ import Link from "next/link";
 import { clsx } from "clsx";
 import type { ComponentProps, ReactNode } from "react";
 
-/** Shared UI building blocks in the Tally design (shadcn-style API). */
+/** Shared UI building blocks in the Adiro design (shadcn-style API). */
 
 type Variant = "primary" | "outline" | "dark" | "ghost";
 type Size = "sm" | "md" | "lg";

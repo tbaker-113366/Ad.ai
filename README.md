@@ -1,4 +1,4 @@
-# Tally — Google Ads waste audit
+# Adiro — Google Ads waste audit (adiro.ai)
 
 Connects to a business's Google Ads account, finds wasted spend in a free
 instant audit, then runs the account on autopilot with owner approval and
@@ -77,7 +77,7 @@ supabase/tests/          RLS tests run against plain Postgres
 
 The UI follows the designer's mockups (Figtree, ink #171717, green #40C98A,
 waste orange #C2410C; tokens in `src/app/globals.css`, components in
-`src/components/ui.tsx`). "Tally" is a working name set in `src/lib/config.ts`.
+`src/components/ui.tsx`). The name (Adiro) and domain (adiro.ai) are set in `src/lib/config.ts`.
 
 Journey: homepage (website box) → `/start` → sign in → `/onboarding/business`
 (step 1) → `/onboarding/questions` (2) → `/onboarding/google` →

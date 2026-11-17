@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/config";
 
-/** Tally mark: a tally (four strokes and a slash) in green on ink. */
+/** Adiro mark: a green "A" on ink (placeholder until a logo is designed). */
 export function LogoMark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
       <rect x="0.5" y="0.5" width="31" height="31" rx="7.5" fill="#171717" stroke="#3a3a3a" />
-      <g stroke="#40C98A" strokeWidth="2" strokeLinecap="round">
-        <path d="M10 10v12M14 10v12M18 10v12M22 10v12M8 19l16-6" />
+      <g fill="none" stroke="#40C98A" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9.5 23 16 9l6.5 14M12 18h8" />
       </g>
     </svg>
   );

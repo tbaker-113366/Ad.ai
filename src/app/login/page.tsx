@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Globe } from "lucide-react";
 import { LogoMark } from "@/components/brand";
+import { PRODUCT_NAME } from "@/lib/config";
 import { Button, Field, Notice, inputClass } from "@/components/ui";
 import { signInWithEmail, signInWithGoogle } from "./actions";
 
@@ -25,11 +26,11 @@ export default async function LoginPage({
     <div className="grid min-h-screen lg:grid-cols-[1fr_440px]">
       <div className="flex flex-col">
         <header className="flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Tally home"><LogoMark size={28} /><span className="text-lg font-extrabold">tally</span></Link>
+          <Link href="/" className="flex items-center gap-2.5" aria-label={`${PRODUCT_NAME} home`}><LogoMark size={28} /><span className="text-lg font-extrabold">{PRODUCT_NAME.toLowerCase()}</span></Link>
           <p className="text-sm text-muted-foreground">Have an account? <Link href="/login?next=/dashboard" className="font-semibold text-link underline underline-offset-4">Sign in</Link></p>
         </header>
         <main className="mx-auto flex w-full max-w-[400px] flex-1 flex-col justify-center px-4 py-12">
-          <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{site ? "Get your free audit" : "Sign in to Tally"}</h1>
+          <h1 className="text-[32px] font-extrabold tracking-[-0.03em]">{site ? "Get your free audit" : `Sign in to ${PRODUCT_NAME}`}</h1>
           <p className="mt-2 text-muted-foreground">{site ? "Create an account so we can save your results. No card needed." : "Welcome back."}</p>
 
           {site && (

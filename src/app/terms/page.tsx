@@ -1,6 +1,6 @@
 import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 
-export const metadata = { title: "Terms of service · Tally" };
+export const metadata = { title: "Terms of service · Adiro" };
 
 /** Placeholder: the real Terms of service must be written (and reviewed) before launch. */
 export default function Page() {

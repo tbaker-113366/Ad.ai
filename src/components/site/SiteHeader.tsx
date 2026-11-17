@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { LinkButton } from "@/components/ui";
+import { PRODUCT_NAME } from "@/lib/config";
 
 const NAV = [
   { href: "/#how-it-works", label: "How it works" },
@@ -35,7 +36,7 @@ export function SiteFooter() {
     <footer className="bg-ink text-white/70">
       <div className="mx-auto flex max-w-[1136px] flex-col gap-4 px-4 py-10 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <span className="text-lg font-extrabold text-white">tally</span>
+          <span className="text-lg font-extrabold text-white">{PRODUCT_NAME.toLowerCase()}</span>
           <nav aria-label="Footer" className="flex flex-wrap gap-6 text-sm">
             <Link href="/pricing" className="underline underline-offset-4 hover:text-white">Pricing</Link>
             <Link href="/audit/sample" className="underline underline-offset-4 hover:text-white">Sample audit</Link>
