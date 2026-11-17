@@ -53,7 +53,7 @@ export const conversionSetupRisky: AuditCheck = {
         checkKey: "conversion_setup_risky",
         severity: "critical",
         title: "Conversion tracking may be counting the wrong things",
-        explanation: `${problems.length === 1 ? "One problem" : `${problems.length} problems`} with how conversions are counted make your results look better than they are. Google's bidding then chases the wrong thing, and so would we.`,
+        explanation: `${problems.length === 1 ? "One problem with how conversions are counted makes" : `${problems.length} problems with how conversions are counted make`} your results look better than they are. Google's bidding then chases the wrong thing, and so would we.`,
         fix: "Change lead actions to count \"one\", make browsing actions (page views, scrolls) secondary, and keep only one primary action per goal.",
         wasteItems: [],
         evidence: {
