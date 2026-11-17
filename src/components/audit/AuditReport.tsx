@@ -1,8 +1,9 @@
-import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { formatMoney } from "@/lib/money";
 import type { Evidence, RecommendedAction, Severity } from "@/lib/audit/types";
 import { negativeKeywordList } from "@/lib/audit/negatives";
-import { CHECK_COUNT } from "@/lib/audit";
+import { CATEGORY, SEVERITY_LABEL } from "@/lib/audit/presentation";
+import { Badge, Card, Eyebrow, LinkButton, buttonClass } from "@/components/ui";
 
 export type FindingView = {
   checkKey: string;
@@ -18,191 +19,212 @@ export type FindingView = {
 type Props = {
   accountName: string;
   currency: string;
+  auditDate: string; // ISO date
   score: number;
+  scoreIfFixed: number;
   estMonthlyWasteMicros: number;
+  monthlySpendMicros: number;
   windowDays: number;
   from: string;
   to: string;
+  searchesChecked: number | null;
+  campaignsChecked: number | null;
+  whatsWorking: string | null;
   findings: FindingView[];
-  ctaHref: string;
-  sample?: boolean;
+  cta: { href: string; label: string; title: string; body: string };
 };
 
-const SEVERITY: Record<Severity, { label: string; badge: string }> = {
-  critical: { label: "Fix first", badge: "bg-red-100 text-red-800" },
-  warning: { label: "Wasting money", badge: "bg-amber-100 text-amber-900" },
-  opportunity: { label: "Opportunity", badge: "bg-sky-100 text-sky-900" },
-};
+const whole = (micros: number, currency: string) => formatMoney(micros, currency).replace(/\.00$/, "");
 
 function scoreTone(score: number) {
-  if (score >= 80) return { ring: "border-green-600 text-green-700", word: "Good" };
-  if (score >= 50) return { ring: "border-amber-500 text-amber-700", word: "Needs work" };
-  return { ring: "border-red-600 text-red-700", word: "Poor" };
+  if (score >= 80) return { stroke: "var(--saved)", word: "Good" };
+  if (score >= 50) return { stroke: "#ca8a04", word: "Needs work" };
+  return { stroke: "var(--waste)", word: "Poor" };
 }
+
+const day = (iso: string, withYear = false) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}), timeZone: "UTC" });
 
 function cell(value: string | number | null | undefined, format: string, currency: string) {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "string") return value;
-  switch (format) {
-    case "money":
-      return formatMoney(value, currency);
-    case "percent":
-      return `${Math.round(value * 100)}%`;
-    case "number":
-      return value.toLocaleString("en-GB", { maximumFractionDigits: 1 });
-    default:
-      return String(value);
-  }
+  if (format === "money") return formatMoney(value, currency);
+  if (format === "percent") return `${Math.round(value * 100)}%`;
+  if (format === "number") return value.toLocaleString("en-GB", { maximumFractionDigits: 1 });
+  return String(value);
 }
 
-const dateLabel = (iso: string) =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+function ScoreRing({ score }: { score: number }) {
+  const t = scoreTone(score);
+  const r = 58, c = 2 * Math.PI * r;
+  return (
+    <svg viewBox="0 0 140 140" className="size-32 shrink-0" role="img" aria-label={`Score ${score} out of 100, ${t.word}`}>
+      <circle cx="70" cy="70" r={r} fill="none" stroke="var(--muted)" strokeWidth="12" />
+      <circle cx="70" cy="70" r={r} fill="none" stroke={t.stroke} strokeWidth="12" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} transform="rotate(-90 70 70)" />
+      <text x="70" y="74" textAnchor="middle" fontSize="40" fontWeight="800" fill="var(--ink)">{score}</text>
+      <text x="70" y="96" textAnchor="middle" fontSize="12" fill="var(--muted-foreground)">out of 100</text>
+    </svg>
+  );
+}
 
-/** Audit result: score, £ waste a month, top 3 fixes, every finding with its evidence. */
+/** Audit result: £ wasted, score, top 3 fixes, every finding with the data behind it. */
 export function AuditReport(p: Props) {
   const tone = scoreTone(p.score);
   const top3 = p.findings.slice(0, 3);
+  const top3Waste = top3.reduce((a, f) => a + (f.estMonthlyWasteMicros ?? 0), 0);
+  const pence = p.monthlySpendMicros > 0 ? Math.round((p.estMonthlyWasteMicros / p.monthlySpendMicros) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-10">
-      <section className="flex flex-col gap-6 sm:flex-row sm:items-center">
-        <div
-          className={`flex h-32 w-32 shrink-0 flex-col items-center justify-center rounded-full border-8 ${tone.ring}`}
-          aria-label={`Score ${p.score} out of 100, ${tone.word}`}
-        >
-          <span className="text-4xl font-bold">{p.score}</span>
-          <span className="text-xs font-medium">{tone.word}</span>
-        </div>
-        <div>
-          <p className="text-sm text-slate-500">
-            {p.accountName} · {dateLabel(p.from)} – {dateLabel(p.to)} ({p.windowDays} days)
+    <div className="flex flex-col gap-12">
+      <header>
+        <Eyebrow>Audit · {day(p.auditDate, true)} · last {p.windowDays} days</Eyebrow>
+        <h1 className="mt-2 text-[32px] font-extrabold tracking-[-0.03em] sm:text-[44px]">{p.accountName}</h1>
+        {p.searchesChecked !== null && (
+          <p className="mt-1 text-muted-foreground">
+            We checked {p.searchesChecked.toLocaleString("en-GB")} searches, {p.campaignsChecked} campaign{p.campaignsChecked === 1 ? "" : "s"} and every hour and area your ads ran in.
           </p>
+        )}
+      </header>
+
+      <section className="grid gap-5 lg:grid-cols-[1.9fr_1fr]">
+        <Card className="p-7 shadow-sm sm:p-10">
           {p.estMonthlyWasteMicros > 0 ? (
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-              About <span className="text-red-700">{formatMoney(p.estMonthlyWasteMicros, p.currency)}</span> a month is
-              being wasted
-            </h1>
+            <>
+              <p className="font-semibold">Wasted each month</p>
+              <p className="mt-2 text-[64px] font-black leading-none tracking-tight text-waste sm:text-[88px]">{whole(p.estMonthlyWasteMicros, p.currency)}</p>
+              <p className="mt-5 text-lg text-muted-foreground">
+                of {whole(p.monthlySpendMicros, p.currency)} spent. That&apos;s {pence}p in every £1, or about {whole(p.estMonthlyWasteMicros * 12, p.currency)} a year.
+              </p>
+            </>
           ) : (
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">We didn&apos;t find obvious wasted spend</h1>
+            <>
+              <p className="font-semibold">Wasted each month</p>
+              <p className="mt-2 text-[56px] font-black leading-none tracking-tight text-saved">None found</p>
+              <p className="mt-5 text-lg text-muted-foreground">We didn&apos;t find obvious wasted spend in the last {p.windowDays} days.</p>
+            </>
           )}
-          <p className="mt-2 text-slate-600">
-            {p.findings.length === 0
-              ? `Your account passed all ${CHECK_COUNT} checks.`
-              : `We found ${p.findings.length} thing${p.findings.length === 1 ? "" : "s"} to fix across ${CHECK_COUNT} checks.`}
+          <p className="mt-4 text-sm text-muted-foreground">
+            Wasted means money spent on clicks that, based on the last {p.windowDays} days, are very unlikely to become a call, form or booking. Each cost is counted once.
           </p>
-        </div>
+        </Card>
+        <Card className="flex items-center gap-6 p-7 shadow-sm">
+          <ScoreRing score={p.score} />
+          <div>
+            <p className="text-xl font-bold">{tone.word}</p>
+            {p.findings.length > 0 ? (
+              <p className="mt-1 text-sm text-muted-foreground">Fixing your top {Math.min(3, p.findings.length)} would take you to about {p.scoreIfFixed}.</p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">Your account passed every check.</p>
+            )}
+          </div>
+        </Card>
       </section>
 
       {top3.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-          <h2 className="text-lg font-semibold">Your top {top3.length === 1 ? "fix" : `${top3.length} fixes`}</h2>
-          <ol className="mt-4 flex flex-col gap-4">
+        <section>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[28px] font-extrabold tracking-[-0.03em]">Your top {top3.length === 1 ? "fix" : `${top3.length} fixes`}</h2>
+            {top3Waste > 0 && <p className="text-sm text-muted-foreground">Together: <span className="font-bold text-waste">{whole(top3Waste, p.currency)} a month</span></p>}
+          </div>
+          <ol className="mt-5 grid gap-5 md:grid-cols-3">
             {top3.map((f, i) => (
-              <li key={f.checkKey} className="flex gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-                  {i + 1}
-                </span>
-                <div>
-                  <p className="font-medium">
-                    {f.title}
-                    {f.estMonthlyWasteMicros ? (
-                      <span className="ml-2 text-sm font-normal text-red-700">
-                        {formatMoney(f.estMonthlyWasteMicros, p.currency)}/month
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="text-sm text-slate-700">{f.fix}</p>
-                </div>
+              <li key={f.checkKey}>
+                <Card className="flex h-full flex-col p-6">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-3xl font-extrabold text-saved">{i + 1}</span>
+                    {f.estMonthlyWasteMicros ? <span className="text-lg font-bold text-waste">{whole(f.estMonthlyWasteMicros, p.currency)}<span className="text-sm font-normal text-muted-foreground">/mo</span></span> : null}
+                  </div>
+                  <h3 className="mt-4 font-bold">{f.title}</h3>
+                  <p className="mt-2 flex-1 text-sm text-muted-foreground">{f.fix}</p>
+                  <div className="mt-5 flex items-center gap-4">
+                    <a href={`#finding-${f.checkKey}`} className={buttonClass("primary", "sm")}>Show me how</a>
+                    <a href={`#finding-${f.checkKey}`} className="text-sm font-semibold text-link underline underline-offset-4">See the data</a>
+                  </div>
+                </Card>
               </li>
             ))}
           </ol>
-          <Link
-            href={p.ctaHref}
-            className="mt-6 inline-block rounded-md bg-slate-900 px-5 py-3 font-medium text-white hover:bg-slate-700"
-          >
-            {p.sample ? "Check my own account — free" : "Keep watch for new waste"}
-          </Link>
         </section>
       )}
 
       {p.findings.length > 0 && (
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold">Everything we found</h2>
-          {p.findings.map((f) => (
-            <article key={f.checkKey} className="rounded-xl border border-slate-200 p-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${SEVERITY[f.severity].badge}`}>
-                  {SEVERITY[f.severity].label}
-                </span>
-                {f.estMonthlyWasteMicros ? (
-                  <span className="text-sm font-medium text-red-700">
-                    {formatMoney(f.estMonthlyWasteMicros, p.currency)} a month
-                  </span>
-                ) : null}
-              </div>
-              <h3 className="mt-2 font-semibold">{f.title}</h3>
-              <p className="mt-1 text-sm text-slate-700">{f.explanation}</p>
-              <p className="mt-2 text-sm">
-                <span className="font-medium">What to do: </span>
-                {f.fix}
-              </p>
-              {negativeKeywordList(f.recommendedActions).length > 0 && (
-                <details className="mt-3 text-sm">
-                  <summary className="cursor-pointer text-slate-600 underline">
-                    Negative keywords to add ({negativeKeywordList(f.recommendedActions).length})
-                  </summary>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Copy these into Google Ads → Keywords → Negative keywords. Brackets and quotes set the match type.
-                  </p>
-                  <textarea
-                    readOnly
-                    aria-label="Negative keywords to add"
-                    rows={Math.min(8, negativeKeywordList(f.recommendedActions).length)}
-                    className="mt-2 w-full rounded-md border border-slate-300 p-2 font-mono text-xs"
-                    defaultValue={negativeKeywordList(f.recommendedActions).join("\n")}
-                  />
-                </details>
-              )}
-              {f.evidence.rows.length > 0 && (
-                <details className="mt-3 text-sm">
-                  <summary className="cursor-pointer text-slate-600 underline">
-                    Show the data ({f.evidence.rows.length} row{f.evidence.rows.length === 1 ? "" : "s"})
-                  </summary>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full min-w-[28rem] text-left">
-                      <thead className="text-slate-500">
-                        <tr>
-                          {f.evidence.columns.map((c) => (
-                            <th key={c.key} className="py-1 pr-4 font-medium">
-                              {c.label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {f.evidence.rows.map((row, i) => (
-                          <tr key={i}>
-                            {f.evidence.columns.map((c) => (
-                              <td key={c.key} className={`py-1 pr-4 ${c.format === "text" ? "" : "tabular-nums"}`}>
-                                {cell(row[c.key], c.format, p.currency)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {f.evidence.notes?.map((n) => (
-                      <p key={n} className="mt-2 text-xs text-slate-500">
-                        {n}
-                      </p>
-                    ))}
+        <section>
+          <h2 className="text-[28px] font-extrabold tracking-[-0.03em]">Everything we found</h2>
+          <p className="mt-1 text-muted-foreground">{p.findings.length} problem{p.findings.length === 1 ? "" : "s"}. Open any one to see the data behind it.</p>
+          <Card className="mt-5 divide-y divide-border px-5 sm:px-7">
+            {p.findings.map((f, i) => {
+              const sev = SEVERITY_LABEL[f.severity];
+              const negatives = negativeKeywordList(f.recommendedActions);
+              return (
+                <article key={f.checkKey} id={`finding-${f.checkKey}`} className="flex scroll-mt-24 gap-4 py-6">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-waste-bg text-waste">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone={sev.tone}>{sev.label}</Badge>
+                          <span className="text-sm text-muted-foreground">{CATEGORY[f.checkKey] ?? ""}</span>
+                        </div>
+                        <h3 className="mt-2 font-bold">{f.title}</h3>
+                      </div>
+                      {f.estMonthlyWasteMicros ? <p className="shrink-0 text-xl font-bold text-waste">{whole(f.estMonthlyWasteMicros, p.currency)}</p> : null}
+                    </div>
+                    <p className="mt-2 text-[15px] text-muted-foreground">{f.explanation}</p>
+                    <p className="mt-3 text-[15px]"><span className="font-semibold">What to do: </span>{f.fix}</p>
+
+                    {negatives.length > 0 && (
+                      <details className="group mt-3">
+                        <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-link">
+                          Negative keywords to add ({negatives.length}) <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
+                        </summary>
+                        <p className="mt-2 text-xs text-muted-foreground">Copy into Google Ads → Keywords → Negative keywords. Brackets and quotes set the match type.</p>
+                        <textarea readOnly aria-label="Negative keywords to add" rows={Math.min(8, negatives.length)} className="mt-2 w-full rounded-lg border border-input p-3 font-mono text-xs" defaultValue={negatives.join("\n")} />
+                      </details>
+                    )}
+
+                    {f.evidence.rows.length > 0 && (
+                      <details className="group mt-3" open={i === 0}>
+                        <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-link">
+                          <span className="group-open:hidden">See the data</span><span className="hidden group-open:inline">Hide the data</span>
+                          <ChevronDown className="size-4 transition-transform group-open:rotate-180" aria-hidden />
+                        </summary>
+                        <div className="mt-3 overflow-x-auto rounded-xl border border-border">
+                          <table className="w-full min-w-[420px] text-left text-sm">
+                            <thead className="bg-muted text-muted-foreground">
+                              <tr>{f.evidence.columns.map((c) => <th key={c.key} className={`px-4 py-2.5 font-semibold ${c.format === "text" ? "" : "text-right"}`}>{c.label}</th>)}</tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {f.evidence.rows.map((row, r) => (
+                                <tr key={r}>{f.evidence.columns.map((c) => <td key={c.key} className={`px-4 py-3 ${c.format === "text" ? "" : "text-right tabular-nums"}`}>{cell(row[c.key], c.format, p.currency)}</td>)}</tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">From your Google Ads data, {day(p.from)} – {day(p.to, true)}.</p>
+                        {f.evidence.notes?.map((n) => <p key={n} className="mt-1 text-xs text-muted-foreground">{n}</p>)}
+                      </details>
+                    )}
                   </div>
-                </details>
-              )}
-            </article>
-          ))}
+                </article>
+              );
+            })}
+          </Card>
         </section>
       )}
+
+      <section className="grid gap-5 md:grid-cols-2">
+        {p.whatsWorking ? (
+          <div className="rounded-[var(--radius-card)] bg-muted p-7">
+            <h2 className="text-xl font-bold">What&apos;s working</h2>
+            <p className="mt-2 text-muted-foreground">{p.whatsWorking}</p>
+          </div>
+        ) : <div className="hidden md:block" />}
+        <Card className="border-saved p-7">
+          <h2 className="text-xl font-bold">{p.cta.title}</h2>
+          <p className="mt-2 text-muted-foreground">{p.cta.body}</p>
+          <LinkButton href={p.cta.href} className="mt-5">{p.cta.label}</LinkButton>
+        </Card>
+      </section>
     </div>
   );
 }

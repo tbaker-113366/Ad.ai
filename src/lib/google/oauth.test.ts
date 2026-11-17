@@ -15,6 +15,13 @@ describe("buildAuthUrl", () => {
     expect(url.searchParams.get("prompt")).toBe("consent");
     expect(url.searchParams.get("state")).toBe("st4te");
     expect(url.searchParams.get("redirect_uri")).toBe(client.redirectUri);
+    expect(url.searchParams.get("scope")).not.toContain("webmasters");
+  });
+
+  it("asks only for Search Console in the Search Console step", () => {
+    const scope = new URL(buildAuthUrl(client, "s", undefined, "search_console")).searchParams.get("scope");
+    expect(scope).toContain("webmasters.readonly");
+    expect(scope).not.toContain("adwords");
   });
 });
 
@@ -41,6 +48,14 @@ describe("exchangeCode", () => {
       jsonResponse(200, { access_token: "a", refresh_token: "r", scope: "openid email", id_token: idToken({ email: "a@b.c" }) }),
     );
     await expect(exchangeCode(client, "code", fetchFn)).rejects.toThrow(/Google Ads permission/);
+  });
+
+  it("accepts a Search Console-only grant in the Search Console step", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse(200, { access_token: "a", refresh_token: "r", scope: "openid https://www.googleapis.com/auth/webmasters.readonly", id_token: idToken({ email: "a@b.c" }) }),
+    );
+    await expect(exchangeCode(client, "code", fetchFn, "search_console")).resolves.toMatchObject({ email: "a@b.c" });
+    await expect(exchangeCode(client, "code", fetchFn, "ads")).rejects.toThrow(/Google Ads permission/);
   });
 
   it("fails without a refresh token", async () => {

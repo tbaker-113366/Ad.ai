@@ -7,7 +7,7 @@ import { publicEnv } from "@/lib/env";
 function safeNext(next: FormDataEntryValue | null): string {
   const value = typeof next === "string" ? next : "";
   // Only allow same-site relative paths.
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/start";
 }
 
 export async function signInWithGoogle(formData: FormData) {

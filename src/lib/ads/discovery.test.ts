@@ -16,7 +16,7 @@ function fakeAds(accessible: string[], responses: Record<string, unknown[] | Err
     listAccessibleCustomers: async () => accessible,
     searchStream: async <T,>(customerId: string, query: string) => {
       calls.push({ login, customerId, query });
-      const key = `${query.includes("customer_client") ? "clients" : "info"}:${customerId}`;
+      const key = `${query.includes("customer_client") ? "clients" : query.includes("LAST_30_DAYS") ? "spend" : "info"}:${customerId}`;
       const r = responses[key];
       if (r instanceof Error) throw r;
       return (r ?? []) as T[];
@@ -50,6 +50,17 @@ describe("discoverAccounts", () => {
     ]);
     // Children of a manager are listed using the manager as login-customer-id.
     expect(calls.find((c) => c.query.includes("customer_client"))?.login).toBe("2222222222");
+  });
+
+  it("adds 30-day spend and sorts busiest first", async () => {
+    const { make } = fakeAds(["1111111111", "2222222222"], {
+      "info:1111111111": [customer("1111111111", "Quiet")],
+      "info:2222222222": [customer("2222222222", "Busy")],
+      "spend:1111111111": [{ metrics: { costMicros: "1000000" } }],
+      "spend:2222222222": [{ metrics: { costMicros: "90000000" } }],
+    });
+    const accounts = await discoverAccounts(make);
+    expect(accounts.map((a) => [a.descriptiveName, a.spend30Micros])).toEqual([["Busy", 90_000_000], ["Quiet", 1_000_000]]);
   });
 
   it("skips accounts that error", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newState, statesMatch } from "./state";
+import { newState, safeNextPath, statesMatch } from "./state";
 
 describe("oauth state", () => {
   it("is random and long", () => {
@@ -14,5 +14,14 @@ describe("oauth state", () => {
     expect(statesMatch(undefined, s)).toBe(false);
     expect(statesMatch(s, null)).toBe(false);
     expect(statesMatch(s, s.slice(1))).toBe(false);
+  });
+});
+
+describe("safeNextPath", () => {
+  it("allows same-site paths only", () => {
+    expect(safeNextPath("/onboarding/accounts", "/accounts")).toBe("/onboarding/accounts");
+    expect(safeNextPath("//evil.com", "/accounts")).toBe("/accounts");
+    expect(safeNextPath("https://evil.com", "/accounts")).toBe("/accounts");
+    expect(safeNextPath(null, "/accounts")).toBe("/accounts");
   });
 });

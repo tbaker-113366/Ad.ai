@@ -4,8 +4,12 @@ import { SEARCH_CONSOLE_SCOPE } from "./searchConsole";
 /** Google OAuth for Google Ads access (separate from app sign-in). */
 
 export const GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords";
-// Search Console is optional: it powers the paid-vs-organic check.
-const SCOPES = ["openid", "email", GOOGLE_ADS_SCOPE, SEARCH_CONSOLE_SCOPE];
+/** Google Ads and Search Console are asked for in separate steps (Search Console is optional). */
+export type ConnectKind = "ads" | "search_console";
+export const SCOPES_FOR: Record<ConnectKind, string[]> = {
+  ads: ["openid", "email", GOOGLE_ADS_SCOPE],
+  search_console: ["openid", "email", SEARCH_CONSOLE_SCOPE],
+};
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -13,12 +17,17 @@ const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 export type OAuthClient = { clientId: string; clientSecret: string; redirectUri: string };
 type Fetch = typeof fetch;
 
-export function buildAuthUrl(client: Pick<OAuthClient, "clientId" | "redirectUri">, state: string, loginHint?: string) {
+export function buildAuthUrl(
+  client: Pick<OAuthClient, "clientId" | "redirectUri">,
+  state: string,
+  loginHint?: string,
+  kind: ConnectKind = "ads",
+) {
   const url = new URL(AUTH_URL);
   url.searchParams.set("client_id", client.clientId);
   url.searchParams.set("redirect_uri", client.redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", SCOPES.join(" "));
+  url.searchParams.set("scope", SCOPES_FOR[kind].join(" "));
   // offline + consent guarantees a refresh token on every connect.
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
@@ -46,7 +55,12 @@ async function postForm(fetchFn: Fetch, url: string, body: Record<string, string
   return { res, json };
 }
 
-export async function exchangeCode(client: OAuthClient, code: string, fetchFn: Fetch = fetch): Promise<CodeExchangeResult> {
+export async function exchangeCode(
+  client: OAuthClient,
+  code: string,
+  fetchFn: Fetch = fetch,
+  kind: ConnectKind = "ads",
+): Promise<CodeExchangeResult> {
   const { res, json } = await postForm(fetchFn, TOKEN_URL, {
     code,
     client_id: client.clientId,
@@ -57,8 +71,11 @@ export async function exchangeCode(client: OAuthClient, code: string, fetchFn: F
   if (!res.ok) throw new Error(`Google token exchange failed: ${String(json.error ?? res.status)}`);
 
   const scopes = String(json.scope ?? "").split(" ").filter(Boolean);
-  if (!scopes.includes(GOOGLE_ADS_SCOPE)) {
+  if (kind === "ads" && !scopes.includes(GOOGLE_ADS_SCOPE)) {
     throw new Error("Google Ads permission was not granted. Please tick the Google Ads box on the consent screen.");
+  }
+  if (kind === "search_console" && !scopes.includes(SEARCH_CONSOLE_SCOPE)) {
+    throw new Error("Search Console permission was not granted. Please tick the Search Console box on the consent screen.");
   }
   if (typeof json.refresh_token !== "string") throw new Error("Google did not return a refresh token");
   const email = emailFromIdToken(String(json.id_token ?? ""));

@@ -1,106 +1,114 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentBusiness } from "@/lib/business/current";
 import { createClient } from "@/lib/supabase/server";
 import { microsToUnits } from "@/lib/money";
+import { INDUSTRIES, TRAVEL_OPTIONS } from "@/lib/business/onboarding";
+import { AppHeader } from "@/components/app/AppHeader";
+import { ChoiceRow } from "@/components/onboarding/Shell";
+import { Button, Card, Field, Notice, inputClass } from "@/components/ui";
+import { THRESHOLDS } from "@/config/thresholds";
 import { saveProfile } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const input = "rounded-md border border-slate-300 px-3 py-2";
-
-export default async function ProfilePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ onboarding?: string; error?: string; saved?: string }>;
-}) {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string }> }) {
   const { user, business, role } = await getCurrentBusiness();
   if (!user) redirect("/login?next=/settings/profile");
-  if (!business) redirect("/onboarding");
-  const { onboarding, error, saved } = await searchParams;
+  if (!business) redirect("/onboarding/business");
+  const { error, saved } = await searchParams;
   const canEdit = role === "owner" || role === "admin";
 
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("business_profiles")
-    .select("offering, locations_served, target_cpa_micros, monthly_budget_micros, brand_terms, irrelevant_terms")
+    .select("base_location, travel_radius_miles, customer_value_micros, who_runs_ads, lead_types, spend_band, target_cpa_micros, brand_terms, irrelevant_terms")
     .eq("business_id", business.id)
     .single();
   const money = (v: number | null | undefined) => (v ? String(microsToUnits(v)) : "");
-  const brand = p?.brand_terms?.length ? p.brand_terms.join(", ") : business.name.toLowerCase();
+  const leads = new Set<string>(p?.lead_types ?? []);
+  const derived = p?.customer_value_micros ? Math.round(microsToUnits(p.customer_value_micros) * THRESHOLDS.audit.targetShareOfCustomerValue) : null;
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-12">
-      {!onboarding && (
-        <Link href="/dashboard" className="text-sm text-slate-500 hover:underline">
-          ← Dashboard
-        </Link>
-      )}
-      <div>
-        {onboarding && <p className="text-sm font-medium text-slate-500">Step 2 of 3</p>}
-        <h1 className="text-2xl font-semibold">{onboarding ? "Three quick questions" : "Business profile"}</h1>
-        <p className="mt-1 text-slate-600">
-          This helps us judge what counts as wasted spend for you. You can skip it and change it later.
-        </p>
-      </div>
-      {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {saved && <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">Saved.</p>}
+    <>
+      <AppHeader businessName={business.name} />
+      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Settings</p>
+        <h1 className="mt-1 text-[32px] font-extrabold tracking-[-0.03em]">Your business</h1>
+        <p className="mt-1 text-muted-foreground">These answers decide what counts as wasted spend for you.</p>
+        <div className="mt-5 flex flex-col gap-3">
+          {error && <Notice tone="error">{error}</Notice>}
+          {saved && <Notice tone="saved">Saved. Your next audit will use these answers.</Notice>}
+        </div>
 
-      <form action={saveProfile} className="flex flex-col gap-5">
-        {onboarding && <input type="hidden" name="onboarding" value="1" />}
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Your website</span>
-          <input name="website" inputMode="url" defaultValue={business.website ?? ""} placeholder="e.g. acme.co.uk" className={input} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">1. What do you sell?</span>
-          <textarea name="offering" rows={2} defaultValue={p?.offering ?? ""} placeholder="e.g. Emergency plumbing and boiler repairs" className={input} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">2. Where are your customers?</span>
-          <input name="locations_served" defaultValue={(p?.locations_served ?? []).join(", ")} placeholder="e.g. Leeds, Bradford, Wakefield" className={input} />
-        </label>
-        <fieldset className="flex flex-col gap-3 text-sm">
-          <legend className="font-medium">3. What&apos;s a good result for you? ({business.currency})</legend>
-          <label className="flex flex-col gap-1">
-            Most you&apos;d happily pay for one lead or sale
-            <input name="target_cpa" inputMode="decimal" defaultValue={money(p?.target_cpa_micros)} placeholder="e.g. 35" className={input} />
-          </label>
-          <label className="flex flex-col gap-1">
-            or your monthly ad budget
-            <input name="monthly_budget" inputMode="decimal" defaultValue={money(p?.monthly_budget_micros)} placeholder="e.g. 1500" className={input} />
-          </label>
-        </fieldset>
+        <form action={saveProfile} className="mt-6 flex flex-col gap-6">
+          <fieldset disabled={!canEdit} className="contents">
+            <Card className="flex flex-col gap-5 p-6">
+              <h2 className="text-lg font-bold">About your business</h2>
+              <Field label="Business name" htmlFor="name"><input id="name" name="name" required defaultValue={business.name} className={inputClass} /></Field>
+              <Field label="Website" htmlFor="website"><input id="website" name="website" required defaultValue={(business.website ?? "").replace(/^https?:\/\//, "")} className={inputClass} /></Field>
+              <Field label="What do you do?" htmlFor="industry">
+                <select id="industry" name="industry" defaultValue={business.industry ?? ""} className={inputClass}>
+                  <option value="">Choose one</option>
+                  {INDUSTRIES.map((i) => <option key={i}>{i}</option>)}
+                </select>
+              </Field>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field label="Where are you based?" hint="Postcode or town" htmlFor="base_location"><input id="base_location" name="base_location" defaultValue={p?.base_location ?? ""} className={inputClass} /></Field>
+                <Field label="How far do you travel?" htmlFor="travel">
+                  <select id="travel" name="travel_radius_miles" defaultValue={p?.travel_radius_miles?.toString() ?? ""} className={inputClass}>
+                    <option value="">Choose one</option>
+                    {TRAVEL_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <Field label="What's a new customer worth to you, roughly? (£)" htmlFor="customer_value"><input id="customer_value" name="customer_value" inputMode="decimal" defaultValue={money(p?.customer_value_micros)} className={inputClass} /></Field>
+            </Card>
 
-        <details className="text-sm" open={!onboarding}>
-          <summary className="cursor-pointer text-slate-600 underline">More (optional)</summary>
-          <div className="mt-3 flex flex-col gap-4">
-            <label className="flex flex-col gap-1">
-              Your business and brand names (we never block these)
-              <input name="brand_terms" defaultValue={brand} className={input} />
-            </label>
-            <label className="flex flex-col gap-1">
-              Words that mean a search isn&apos;t for you
-              <input name="irrelevant_terms" defaultValue={(p?.irrelevant_terms ?? []).join(", ")} placeholder="e.g. commercial, wholesale" className={input} />
-            </label>
-          </div>
-        </details>
+            <Card className="flex flex-col gap-6 p-6">
+              <h2 className="text-lg font-bold">Your ads</h2>
+              <fieldset className="flex flex-col gap-2.5">
+                <legend className="mb-2 text-sm font-semibold">Who runs your Google Ads?</legend>
+                <ChoiceRow type="radio" name="who_runs_ads" value="self" label="I do it myself" defaultChecked={p?.who_runs_ads === "self"} />
+                <ChoiceRow type="radio" name="who_runs_ads" value="agency" label="An agency or freelancer" defaultChecked={p?.who_runs_ads === "agency"} />
+                <ChoiceRow type="radio" name="who_runs_ads" value="both" label="A bit of both" defaultChecked={p?.who_runs_ads === "both"} />
+              </fieldset>
+              <fieldset className="flex flex-col gap-2.5">
+                <legend className="mb-2 text-sm font-semibold">What counts as a lead?</legend>
+                <ChoiceRow type="checkbox" name="lead_types" value="calls" label="Phone calls" defaultChecked={leads.has("calls")} />
+                <ChoiceRow type="checkbox" name="lead_types" value="forms" label="Contact forms or emails" defaultChecked={leads.has("forms")} />
+                <ChoiceRow type="checkbox" name="lead_types" value="bookings" label="Online bookings" defaultChecked={leads.has("bookings")} />
+                <ChoiceRow type="checkbox" name="lead_types" value="sales" label="Sales on my website" defaultChecked={leads.has("sales")} />
+              </fieldset>
+              <fieldset>
+                <legend className="mb-2 text-sm font-semibold">Monthly Google Ads spend</legend>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <ChoiceRow type="radio" name="spend_band" value="under_500" label="Under £500" defaultChecked={p?.spend_band === "under_500"} />
+                  <ChoiceRow type="radio" name="spend_band" value="500_1500" label="£500 – £1,500" defaultChecked={p?.spend_band === "500_1500"} />
+                  <ChoiceRow type="radio" name="spend_band" value="1500_5000" label="£1,500 – £5,000" defaultChecked={p?.spend_band === "1500_5000"} />
+                  <ChoiceRow type="radio" name="spend_band" value="over_5000" label="Over £5,000" defaultChecked={p?.spend_band === "over_5000"} />
+                </div>
+              </fieldset>
+            </Card>
 
-        {canEdit ? (
-          <div className="flex items-center gap-4">
-            <button className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white hover:bg-slate-700">
-              {onboarding ? "Continue" : "Save"}
-            </button>
-            {onboarding && (
-              <Link href="/accounts" className="text-sm text-slate-600 underline">
-                Skip for now
-              </Link>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">Only owners and admins can change this.</p>
-        )}
-      </form>
-    </main>
+            <Card className="flex flex-col gap-5 p-6">
+              <div>
+                <h2 className="text-lg font-bold">Fine-tuning (optional)</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Leave these blank and we&apos;ll work them out for you.</p>
+              </div>
+              <Field label="Most you'd pay for one lead (£)" hint={derived ? `Blank = £${derived}, a third of what a customer is worth.` : "Blank = worked out from what a customer is worth."} htmlFor="target_cpa">
+                <input id="target_cpa" name="target_cpa" inputMode="decimal" defaultValue={money(p?.target_cpa_micros)} className={inputClass} />
+              </Field>
+              <Field label="Your business and brand names" hint="We never treat searches for these as waste. Separate with commas." htmlFor="brand_terms">
+                <input id="brand_terms" name="brand_terms" defaultValue={(p?.brand_terms ?? []).join(", ")} className={inputClass} />
+              </Field>
+              <Field label="Words that mean a search isn't for you" hint="e.g. commercial, wholesale" htmlFor="irrelevant_terms">
+                <input id="irrelevant_terms" name="irrelevant_terms" defaultValue={(p?.irrelevant_terms ?? []).join(", ")} className={inputClass} />
+              </Field>
+            </Card>
+          </fieldset>
+          {canEdit ? <div><Button size="lg">Save changes</Button></div> : <p className="text-sm text-muted-foreground">Only owners and admins can change this.</p>}
+        </form>
+      </main>
+    </>
   );
 }

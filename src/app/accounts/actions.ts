@@ -26,16 +26,18 @@ async function loadConnection(connectionId: string, businessId: string) {
 /** Connect the ad accounts ticked in the picker, then start their first sync. */
 export async function connectAccounts(formData: FormData) {
   const { business } = await requireManager();
+  const onboarding = formData.get("onboarding") === "1";
+  const back = onboarding ? "/onboarding/accounts" : "/accounts";
   const connectionId = String(formData.get("connectionId") ?? "");
   const chosen = new Set(formData.getAll("customerId").map(String));
-  if (chosen.size === 0) redirect("/accounts?error=Choose%20at%20least%20one%20account");
+  if (chosen.size === 0) redirect(`${back}?error=Choose%20at%20least%20one%20account`);
 
   const { admin, conn } = await loadConnection(connectionId, business.id);
-  if (conn.status !== "active") redirect("/accounts?error=Reconnect%20Google%20first");
+  if (conn.status !== "active") redirect(`${back}?error=Reconnect%20Google%20first`);
 
   // Only accounts the discovery job found for this login can be connected.
   const discovered = (conn.discovered_accounts as DiscoveredAccount[]).filter((a) => chosen.has(a.customerId));
-  if (discovered.length === 0) redirect("/accounts?error=Those%20accounts%20are%20not%20available");
+  if (discovered.length === 0) redirect(`${back}?error=Those%20accounts%20are%20not%20available`);
 
   const { data: rows, error } = await admin
     .from("ad_accounts")
@@ -50,14 +52,20 @@ export async function connectAccounts(formData: FormData) {
         time_zone: a.timeZone,
         is_test_account: a.isTestAccount,
         status: "active",
+        disconnected_at: null,
       })),
       { onConflict: "business_id,customer_id" },
     )
     .select("id");
-  if (error) redirect(`/accounts?error=${encodeURIComponent("Could not connect those accounts")}`);
+  if (error) redirect(`${back}?error=${encodeURIComponent("Could not connect those accounts")}`);
 
   const ids = (rows ?? []).map((r) => r.id as string);
   await inngest.send(ids.map((adAccountId) => ({ name: EVENTS.syncRequested, data: { adAccountId } })));
+  if (onboarding) {
+    // Search Console comes next; the audit starts when onboarding finishes.
+    await admin.from("business_profiles").update({ onboarding_step: 3 }).eq("business_id", business.id);
+    redirect("/onboarding/search-console");
+  }
   // The free audit starts straight away (spec §10: audit result in under 60 seconds).
   const auditIds = await Promise.all(ids.map((id) => requestAudit(admin, business.id, id, "connect")));
   redirect(auditIds.length === 1 ? `/audits/${auditIds[0]}` : "/dashboard?connected=1");
@@ -69,7 +77,7 @@ export async function removeAccount(formData: FormData) {
   const admin = createAdminClient();
   await admin
     .from("ad_accounts")
-    .update({ status: "disconnected" })
+    .update({ status: "disconnected", disconnected_at: new Date().toISOString() })
     .eq("id", String(formData.get("adAccountId") ?? ""))
     .eq("business_id", business.id);
   revalidatePath("/accounts");
@@ -87,9 +95,18 @@ export async function disconnectGoogle(formData: FormData) {
   }
   await admin
     .from("google_connections")
-    .update({ status: "disconnected", status_reason: "Disconnected by user" })
+    .update({
+      status: "disconnected",
+      status_reason: "Disconnected by user",
+      disconnected_at: new Date().toISOString(),
+      refresh_token_encrypted: "revoked",
+    })
     .eq("id", conn.id);
-  await admin.from("ad_accounts").update({ status: "disconnected" }).eq("google_connection_id", conn.id);
+  await admin
+    .from("ad_accounts")
+    .update({ status: "disconnected", disconnected_at: new Date().toISOString() })
+    .eq("google_connection_id", conn.id)
+    .is("disconnected_at", null);
   revalidatePath("/accounts");
 }
 

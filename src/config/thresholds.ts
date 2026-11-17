@@ -31,6 +31,11 @@ export const THRESHOLDS = {
    * converted to micros in code. [Owner to refine from experience.]
    */
   audit: {
+    /**
+     * With no explicit target cost per lead, the target is this share of what
+     * a new customer is worth (onboarding asks for customer value).
+     */
+    targetShareOfCustomerValue: 1 / 3,
     /** Accounts below either 30-day figure are audited over 90 days instead. */
     lowVolume: { minConversions30d: 15, minClicks30d: 300 },
     windowDays: 30,

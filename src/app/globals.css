@@ -1,5 +1,84 @@
 @import "tailwindcss";
+@import "@fontsource-variable/figtree";
 
+/* Tally design tokens (from the design mockups). */
 :root {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --background: #fafafa;
+  --foreground: #171717;
+  --card: #ffffff;
+  --muted: #f3f3f3;
+  --muted-foreground: #666666;
+  --subtle: #a3a3a3;
+  --primary: #40c98a;
+  --primary-hover: #2fb877;
+  --primary-foreground: #0b2a1c;
+  --link: #11804f;
+  --ink: #171717;
+  --ink-2: #262626;
+  --secondary: #e7f8ef;
+  --secondary-foreground: #0e5c3a;
+  --border: #e5e5e5;
+  --input: #d4d4d4;
+  --waste: #c2410c;
+  --waste-bg: #fff4ed;
+  --waste-border: #fed7c3;
+  --saved: #11804f;
+  --saved-bg: #e7f8ef;
+  --saved-border: #b4ebcf;
+  --info: #1d5fa8;
+  --info-bg: #eef4fc;
+  --info-border: #c9dbf2;
+  --warning: #8a5a00;
+  --warning-bg: #fff8e1;
+  --warning-border: #f3de9e;
+  --destructive: #c81e1e;
+  --destructive-bg: #fdeeee;
+  --destructive-border: #f5c6c6;
+}
+
+@theme inline {
+  --font-sans: "Figtree Variable", Figtree, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-link: var(--link);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-waste: var(--waste);
+  --color-waste-bg: var(--waste-bg);
+  --color-waste-border: var(--waste-border);
+  --color-saved: var(--saved);
+  --color-saved-bg: var(--saved-bg);
+  --color-saved-border: var(--saved-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-destructive: var(--destructive);
+  --color-destructive-bg: var(--destructive-bg);
+  --color-destructive-border: var(--destructive-border);
+  --radius-card: 14px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }

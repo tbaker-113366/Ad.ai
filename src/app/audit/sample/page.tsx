@@ -1,38 +1,50 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 import { AuditReport } from "@/components/audit/AuditReport";
 import { runAudit } from "@/lib/audit";
 import { sampleAudit } from "@/lib/audit/sample";
 import { toFindingView } from "@/lib/audit/view";
+import { checkedCounts, scoreIfFixed, whatsWorking } from "@/lib/audit/presentation";
 import { PRODUCT_NAME } from "@/lib/config";
 
 export const metadata: Metadata = { title: `Sample audit · ${PRODUCT_NAME}` };
 
-/** Public sample audit on made-up data: shows what the free audit looks like. */
+/** Public sample audit on made-up data. */
 export default function SampleAuditPage() {
   const { data, profile, accountName } = sampleAudit();
-  const result = runAudit(data, profile);
+  const r = runAudit(data, profile);
+  const counts = checkedCounts(data);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12">
-      <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm text-slate-500 hover:underline">
-          ← {PRODUCT_NAME}
-        </Link>
-        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">Sample — made-up account</span>
+    <>
+      <SiteHeader />
+      <div className="bg-ink text-white">
+        <div className="mx-auto flex max-w-[1136px] flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm sm:px-6">
+          <p>This is a sample audit for a made-up plumbing business. Every number opens its data.</p>
+          <Link href="/start" className="font-semibold underline underline-offset-4">Get your own in 60 seconds</Link>
+        </div>
       </div>
-      <AuditReport
-        accountName={accountName}
-        currency={data.currency}
-        score={result.score}
-        estMonthlyWasteMicros={result.estMonthlyWasteMicros}
-        windowDays={data.windowDays}
-        from={data.from}
-        to={data.to}
-        findings={result.findings.map(toFindingView)}
-        ctaHref="/login"
-        sample
-      />
-    </main>
+      <main className="mx-auto max-w-[1136px] px-4 py-12 sm:px-6">
+        <AuditReport
+          accountName={accountName}
+          currency={data.currency}
+          auditDate={data.to}
+          score={r.score}
+          scoreIfFixed={scoreIfFixed(r.score, r.findings)}
+          estMonthlyWasteMicros={r.estMonthlyWasteMicros}
+          monthlySpendMicros={Math.round((data.totals.costMicros * 30) / data.windowDays)}
+          windowDays={data.windowDays}
+          from={data.from}
+          to={data.to}
+          searchesChecked={counts.searches}
+          campaignsChecked={counts.campaigns}
+          whatsWorking={whatsWorking(data, profile)}
+          findings={r.findings.map(toFindingView)}
+          cta={{ href: "/start", label: "Get my free audit", title: "What's your number?", body: "This was a made-up business. Yours takes about a minute, and we only read your account." }}
+        />
+      </main>
+      <SiteFooter />
+    </>
   );
 }

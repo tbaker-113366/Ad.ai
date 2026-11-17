@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentBusiness } from "@/lib/business/current";
 import { createClient } from "@/lib/supabase/server";
-import { PRODUCT_NAME } from "@/lib/config";
+import { AppHeader } from "@/components/app/AppHeader";
+import { onboardingPath } from "@/lib/business/onboardingProgress";
 import { formatMoney } from "@/lib/money";
 import { formatCustomerId, formatDateTime } from "@/lib/format";
 import { ReconnectBanner } from "@/components/ReconnectBanner";
@@ -17,10 +18,11 @@ type Totals = { cost: number; clicks: number; conversions: number };
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ connected?: string }> }) {
   const { user, business } = await getCurrentBusiness();
   if (!user) redirect("/login");
-  if (!business) redirect("/onboarding");
+  if (!business) redirect("/onboarding/business");
   const { connected } = await searchParams;
 
   const supabase = await createClient();
+  const { data: profileRow } = await supabase.from("business_profiles").select("onboarding_step").eq("business_id", business.id).single();
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
   const [{ data: accounts }, { data: revoked }, { data: metrics }, { data: runs }, { data: audits }, { data: alerts }] = await Promise.all([
     supabase
@@ -71,25 +73,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-12">
-      <header className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-slate-500">{PRODUCT_NAME}</p>
-          <h1 className="text-2xl font-semibold">{business.name}</h1>
-        </div>
-        <nav className="flex items-center gap-4 text-sm text-slate-600">
-          <Link href="/settings/profile" className="underline">
-            Business profile
-          </Link>
-          <form action="/auth/signout" method="post">
-            <button className="underline">Sign out</button>
-          </form>
-        </nav>
+    <>
+    <AppHeader businessName={business.name} />
+    <main className="mx-auto flex max-w-[1136px] flex-col gap-8 px-4 py-10 sm:px-6">
+      <header>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Dashboard</p>
+        <h1 className="mt-1 text-[32px] font-extrabold tracking-[-0.03em]">{business.name}</h1>
       </header>
 
       <ReconnectBanner emails={(revoked ?? []).map((r) => r.google_user_email)} />
       {(alerts ?? []).map((al) => (
-        <div key={al.id} role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <div key={al.id} role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning-border bg-warning-bg p-4 text-sm text-warning">
           <p>{al.message}</p>
           <div className="flex items-center gap-4">
             {al.link && (
@@ -105,27 +99,27 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
       ))}
       {connected && (
-        <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+        <p className="rounded-md border border-saved-border bg-saved-bg p-3 text-sm text-saved">
           Connected. We&apos;re pulling your last 90 days of data — this usually takes under a minute.
         </p>
       )}
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-medium">Your Google Ads accounts · last 30 days</h2>
-          <Link href="/accounts" className="text-sm text-slate-600 underline">
+          <h2 className="text-lg font-bold">Your Google Ads accounts · last 30 days</h2>
+          <Link href="/accounts" className="text-sm text-muted-foreground underline">
             Manage accounts
           </Link>
         </div>
 
         {(accounts ?? []).length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center">
-            <p className="text-slate-600">Connect Google Ads to see how much you could be saving.</p>
+          <div className="rounded-[var(--radius-card)] border border-dashed border-input bg-card p-8 text-center">
+            <p className="text-muted-foreground">Connect Google Ads to see how much you could be saving.</p>
             <Link
-              href="/accounts"
-              className="mt-4 inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+              href={onboardingPath(profileRow?.onboarding_step)}
+              className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
             >
-              Connect Google Ads
+              {(profileRow?.onboarding_step ?? 0) > 0 ? "Finish setting up" : "Connect Google Ads"}
             </Link>
           </div>
         ) : (
@@ -134,7 +128,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               const t = totals.get(a.id) ?? { cost: 0, clicks: 0, conversions: 0 };
               const audit = latestAudit.get(a.id);
               return (
-                <li key={a.id} className="rounded-lg border border-slate-200 p-4">
+                <li key={a.id} className="rounded-[var(--radius-card)] border border-border bg-card p-4">
                   <p className="font-medium">{a.descriptive_name ?? formatCustomerId(a.customer_id)}</p>
                   {(() => {
                     const first = firstAudit.get(a.id);
@@ -143,31 +137,31 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     const now = Number(audit.est_monthly_waste_micros ?? 0);
                     const cur = audit.currency ?? a.currency;
                     return (
-                      <p className="mt-2 text-sm text-slate-600">
+                      <p className="mt-2 text-sm text-muted-foreground">
                         Wasted spend: {formatMoney(before, cur)} → {formatMoney(now, cur)} a month
                         {before > now && (
-                          <span className="font-medium text-green-700"> · {formatMoney(before - now, cur)} a month cut</span>
+                          <span className="font-medium text-saved"> · {formatMoney(before - now, cur)} a month cut</span>
                         )}
                       </p>
                     );
                   })()}
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-slate-50 p-3 text-sm">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted p-3 text-sm">
                     {!audit ? (
-                      <span className="text-slate-600">No audit yet.</span>
+                      <span className="text-muted-foreground">No audit yet.</span>
                     ) : audit.status === "succeeded" ? (
                       <Link href={`/audits/${audit.id}`} className="hover:underline">
                         <span className="font-semibold">Score {audit.score}/100</span>
                         {Number(audit.est_monthly_waste_micros) > 0 && (
-                          <span className="text-red-700">
+                          <span className="text-waste">
                             {" "}
                             · about {formatMoney(Number(audit.est_monthly_waste_micros), audit.currency ?? a.currency)} a month
                             wasted
                           </span>
                         )}
-                        <span className="text-slate-500"> · see findings →</span>
+                        <span className="text-muted-foreground"> · see findings →</span>
                       </Link>
                     ) : audit.status === "failed" ? (
-                      <Link href={`/audits/${audit.id}`} className="text-red-700 hover:underline">
+                      <Link href={`/audits/${audit.id}`} className="text-waste hover:underline">
                         Last audit didn&apos;t finish →
                       </Link>
                     ) : (
@@ -177,30 +171,30 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                     )}
                     <form action={rerunAudit}>
                       <input type="hidden" name="adAccountId" value={a.id} />
-                      <button className="text-slate-600 underline">{audit ? "Run a new audit" : "Run audit"}</button>
+                      <button className="text-muted-foreground underline">{audit ? "Run a new audit" : "Run audit"}</button>
                     </form>
                   </div>
                   {!a.initial_sync_done ? (
-                    <p className="mt-1 text-sm text-slate-500">Syncing your data…</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Syncing your data…</p>
                   ) : (
                     <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
                       <div>
-                        <dt className="text-slate-500">Spend</dt>
+                        <dt className="text-muted-foreground">Spend</dt>
                         <dd className="text-lg font-semibold">{formatMoney(t.cost, a.currency)}</dd>
                       </div>
                       <div>
-                        <dt className="text-slate-500">Clicks</dt>
+                        <dt className="text-muted-foreground">Clicks</dt>
                         <dd className="text-lg font-semibold">{t.clicks.toLocaleString("en-GB")}</dd>
                       </div>
                       <div>
-                        <dt className="text-slate-500">Leads &amp; sales</dt>
+                        <dt className="text-muted-foreground">Leads &amp; sales</dt>
                         <dd className="text-lg font-semibold">
                           {t.conversions.toLocaleString("en-GB", { maximumFractionDigits: 1 })}
                         </dd>
                       </div>
                     </dl>
                   )}
-                  <p className="mt-2 text-xs text-slate-500">Last synced {formatDateTime(a.last_synced_at)}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Last synced {formatDateTime(a.last_synced_at)}</p>
                 </li>
               );
             })}
@@ -208,27 +202,27 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         )}
       </section>
 
-      <section className="rounded-lg border border-slate-200 p-5">
-        <h2 className="font-medium">Background jobs</h2>
-        <p className="mt-1 text-sm text-slate-600">Recent background work for your account.</p>
+      <section className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+        <h2 className="text-lg font-bold">Background jobs</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Recent background work for your account.</p>
         <form action={runTestJob} className="mt-4">
-          <button className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+          <button className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted">
             Run test job
           </button>
         </form>
-        <ul className="mt-5 divide-y divide-slate-100 text-sm">
-          {(runs ?? []).length === 0 && <li className="py-2 text-slate-500">No job runs yet.</li>}
+        <ul className="mt-5 divide-y divide-border text-sm">
+          {(runs ?? []).length === 0 && <li className="py-2 text-muted-foreground">No job runs yet.</li>}
           {(runs ?? []).map((run) => (
             <li key={run.id} className="flex justify-between gap-4 py-2">
               <span className="font-mono">{run.job_name}</span>
               <span
                 className={
-                  run.status === "succeeded" ? "text-green-700" : run.status === "failed" ? "text-red-700" : "text-slate-500"
+                  run.status === "succeeded" ? "text-saved" : run.status === "failed" ? "text-waste" : "text-muted-foreground"
                 }
               >
                 {run.status}
               </span>
-              <time className="text-slate-500" dateTime={run.started_at}>
+              <time className="text-muted-foreground" dateTime={run.started_at}>
                 {formatDateTime(run.started_at)}
               </time>
             </li>
@@ -236,5 +230,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </ul>
       </section>
     </main>
+    </>
   );
 }

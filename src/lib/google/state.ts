@@ -13,3 +13,10 @@ export function statesMatch(fromCookie: string | undefined, fromQuery: string | 
   const b = Buffer.from(fromQuery);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+/** Where to send the user after Google, limited to same-site paths. */
+export function safeNextPath(next: string | null | undefined, fallback: string): string {
+  return next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : fallback;
+}
+export const OAUTH_NEXT_COOKIE = "gads_oauth_next";
+export const OAUTH_KIND_COOKIE = "gads_oauth_kind";

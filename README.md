@@ -1,4 +1,4 @@
-# [ProductName] — AI Ads Autopilot
+# Tally — Google Ads waste audit
 
 Connects to a business's Google Ads account, finds wasted spend in a free
 instant audit, then runs the account on autopilot with owner approval and
@@ -72,6 +72,22 @@ supabase/tests/          RLS tests run against plain Postgres
    last 90 days sync into `daily_metrics` (Phase 1 "done when"). Revoking
    access at myaccount.google.com/permissions makes the next sync show the
    "Reconnect your Google Ads account" banner.
+
+## Design and journey
+
+The UI follows the designer's mockups (Figtree, ink #171717, green #40C98A,
+waste orange #C2410C; tokens in `src/app/globals.css`, components in
+`src/components/ui.tsx`). "Tally" is a working name set in `src/lib/config.ts`.
+
+Journey: homepage (website box) → `/start` → sign in → `/onboarding/business`
+(step 1) → `/onboarding/questions` (2) → `/onboarding/google` →
+`/onboarding/accounts` (3) → `/onboarding/search-console` (4, optional) →
+`/onboarding/finish` starts the free audit → `/audits/<id>`.
+
+Google Ads and Search Console are separate consent steps. The audit's target
+cost per lead is the explicit target if set, else a third of what the owner
+says a new customer is worth. Disconnected accounts and logins are deleted
+30 days later by `data.purge_disconnected`.
 
 ## Product focus
 

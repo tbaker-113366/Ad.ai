@@ -13,7 +13,13 @@ export type DiscoveredAccount = {
   loginCustomerId: string | null;
   /** Name of the manager it was found through, for display. */
   viaManagerName: string | null;
+  /** Spend in the last 30 days (micros), or null if it couldn't be read. */
+  spend30Micros?: number | null;
 };
+
+const SPEND_30_QUERY = "SELECT metrics.cost_micros FROM customer WHERE segments.date DURING LAST_30_DAYS";
+/** At most this many accounts get a spend lookup (each costs an API operation). */
+const MAX_SPEND_LOOKUPS = 25;
 
 type CustomerRow = {
   customer: {
@@ -94,5 +100,16 @@ export async function discoverAccounts(
   }
 
   for (const acct of viaManager) if (!found.has(acct.customerId)) found.set(acct.customerId, acct);
-  return [...found.values()].sort((a, b) => (a.descriptiveName ?? "").localeCompare(b.descriptiveName ?? ""));
+  const accounts = [...found.values()];
+
+  for (const acct of accounts.slice(0, MAX_SPEND_LOOKUPS)) {
+    try {
+      const rows = await makeClient(acct.loginCustomerId).searchStream<{ metrics?: { costMicros?: string } }>(acct.customerId, SPEND_30_QUERY);
+      acct.spend30Micros = rows.reduce((a, r) => a + Number(r.metrics?.costMicros ?? 0), 0);
+    } catch {
+      acct.spend30Micros = null;
+    }
+  }
+  // Busiest accounts first: they're the ones people want audited.
+  return accounts.sort((a, b) => (b.spend30Micros ?? -1) - (a.spend30Micros ?? -1) || (a.descriptiveName ?? "").localeCompare(b.descriptiveName ?? ""));
 }

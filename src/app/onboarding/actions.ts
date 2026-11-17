@@ -1,41 +1,58 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentBusiness, requireManager } from "@/lib/business/current";
+import { parseBusinessStep, parseQuestionsStep } from "@/lib/business/onboarding";
 
-const schema = z.object({
-  name: z.string().trim().min(1, "Enter your business name").max(200),
-  website: z
-    .string()
-    .trim()
-    .max(500)
-    .transform((v) => (v === "" ? null : v))
-    .pipe(z.url("Enter a full web address, e.g. https://example.co.uk").nullable()),
-  industry: z
-    .string()
-    .trim()
-    .max(100)
-    .transform((v) => (v === "" ? null : v)),
-});
+const fail = (path: string, message: string): never => redirect(`${path}?error=${encodeURIComponent(message)}`);
 
-export async function createBusiness(formData: FormData) {
-  const parsed = schema.safeParse({
-    name: formData.get("name") ?? "",
-    website: formData.get("website") ?? "",
-    industry: formData.get("industry") ?? "",
-  });
-  if (!parsed.success) {
-    redirect(`/onboarding?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`);
+async function markStep(businessId: string, step: number) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("business_profiles").select("onboarding_step").eq("business_id", businessId).single();
+  if ((data?.onboarding_step ?? 0) < step) {
+    await supabase.from("business_profiles").update({ onboarding_step: step }).eq("business_id", businessId);
   }
+}
+
+/** Step 1: create (or update) the business and its location/value answers. */
+export async function saveBusinessStep(formData: FormData) {
+  const parsed = parseBusinessStep(formData);
+  if (!parsed.success) return fail("/onboarding/business", parsed.error.issues[0].message);
+  const { name, website, industry, ...profile } = parsed.data;
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("create_business", {
-    p_name: parsed.data.name,
-    p_website: parsed.data.website,
-    p_industry: parsed.data.industry,
-  });
-  if (error) redirect(`/onboarding?error=${encodeURIComponent(error.message)}`);
+  const ctx = await getCurrentBusiness();
+  if (!ctx.user) redirect("/login?next=/onboarding/business");
 
-  redirect("/settings/profile?onboarding=1");
+  let businessId = ctx.business?.id;
+  if (!businessId) {
+    const { data, error } = await supabase.rpc("create_business", { p_name: name, p_website: website, p_industry: industry });
+    if (error || !data) return fail("/onboarding/business", "We couldn't save your business. Please try again.");
+    businessId = data as string;
+  } else {
+    await requireManager();
+    const { error } = await supabase.from("businesses").update({ name, website, industry }).eq("id", businessId);
+    if (error) return fail("/onboarding/business", "We couldn't save your business. Please try again.");
+  }
+
+  const { error } = await supabase
+    .from("business_profiles")
+    .update({ ...profile, brand_terms: [name.toLowerCase()] })
+    .eq("business_id", businessId);
+  if (error) return fail("/onboarding/business", "We couldn't save your answers. Please try again.");
+  await markStep(businessId, 1);
+  redirect("/onboarding/questions");
+}
+
+/** Step 2: three quick questions. */
+export async function saveQuestionsStep(formData: FormData) {
+  const { business } = await requireManager();
+  const parsed = parseQuestionsStep(formData);
+  if (!parsed.success) return fail("/onboarding/questions", parsed.error.issues[0].message);
+  const supabase = await createClient();
+  const { error } = await supabase.from("business_profiles").update(parsed.data).eq("business_id", business.id);
+  if (error) return fail("/onboarding/questions", "We couldn't save your answers. Please try again.");
+  await markStep(business.id, 2);
+  redirect("/onboarding/google");
 }

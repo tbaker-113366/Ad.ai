@@ -1,8 +1,8 @@
 /**
- * Product-wide constants. PRODUCT_NAME is a placeholder until the name is
- * chosen (spec open question #1) — change it here only.
+ * Product-wide constants. PRODUCT_NAME "Tally" is a working name (check the
+ * trademark and domain before launch) — change it here only.
  */
-export const PRODUCT_NAME = "[ProductName]";
+export const PRODUCT_NAME = "Tally";
 
 export const DEFAULT_COUNTRY = "GB";
 export const DEFAULT_CURRENCY = "GBP";

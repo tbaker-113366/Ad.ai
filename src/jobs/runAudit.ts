@@ -15,6 +15,8 @@ import { listSites, pickSite, queryOrganic, SEARCH_CONSOLE_SCOPE } from "@/lib/g
 import type { AuditData } from "@/lib/audit/types";
 
 import { AUDIT_STEPS } from "./auditSteps";
+import { targetCpaFromProfile } from "@/lib/audit/target";
+import { checkedCounts, scoreIfFixed, whatsWorking } from "@/lib/audit/presentation";
 
 /** Runs the 15-check audit for one ad account and stores the findings. */
 export const runAuditJob = inngest.createFunction(
@@ -91,11 +93,11 @@ export const runAuditJob = inngest.createFunction(
             await assertQuotaAvailable(admin, 20);
             const { data: p } = await admin
               .from("business_profiles")
-              .select("target_cpa_micros, monthly_budget_micros, irrelevant_terms, brand_terms")
+              .select("target_cpa_micros, monthly_budget_micros, irrelevant_terms, brand_terms, customer_value_micros")
               .eq("business_id", audit.business_id)
               .single();
             const profile: AuditProfile = {
-              targetCpaMicros: p?.target_cpa_micros ? Number(p.target_cpa_micros) : null,
+              targetCpaMicros: targetCpaFromProfile(p),
               monthlyBudgetMicros: p?.monthly_budget_micros ? Number(p.monthly_budget_micros) : null,
               irrelevantTerms: p?.irrelevant_terms ?? [],
               brandTerms: p?.brand_terms ?? [],
@@ -104,10 +106,22 @@ export const runAuditJob = inngest.createFunction(
             await setStep(1);
             const getToken = accessTokenProvider(conn);
             const client = adsClientFactory(conn, (n) => ctx.addApiOperations(n), getToken)(account.login_customer_id);
-            const hasSearchConsole = (conn.scopes ?? []).includes(SEARCH_CONSOLE_SCOPE);
-            const fetchOrganic = hasSearchConsole
+            // Search Console may have been granted by this login or another one in the business.
+            let scToken: (() => Promise<string>) | null = (conn.scopes ?? []).includes(SEARCH_CONSOLE_SCOPE) ? getToken : null;
+            if (!scToken) {
+              const { data: other } = await admin
+                .from("google_connections")
+                .select("id, business_id, refresh_token_encrypted")
+                .eq("business_id", audit.business_id)
+                .eq("status", "active")
+                .contains("scopes", [SEARCH_CONSOLE_SCOPE])
+                .limit(1)
+                .maybeSingle();
+              if (other) scToken = accessTokenProvider(other);
+            }
+            const fetchOrganic = scToken
               ? async (from: string, to: string): Promise<AuditData["organic"]> => {
-                  const token = await getToken();
+                  const token = await scToken!();
                   const site = pickSite(await listSites(token), audit.businesses.website);
                   if (!site) return { status: "no_site", siteUrl: null, queries: [] };
                   return { status: "ok", siteUrl: site.siteUrl, queries: await queryOrganic(token, site.siteUrl, from, to) };
@@ -163,6 +177,10 @@ export const runAuditJob = inngest.createFunction(
                 blocks_autopilot: result.blocksAutopilot,
                 skipped_checks: result.skippedChecks,
                 organic_status: data.organic.status,
+                searches_checked: checkedCounts(data).searches,
+                campaigns_checked: checkedCounts(data).campaigns,
+                score_if_fixed: scoreIfFixed(result.score, result.findings),
+                whats_working: whatsWorking(data, profile),
                 organic_site: data.organic.siteUrl,
               })
               .eq("id", auditId);
